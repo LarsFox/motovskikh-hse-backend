@@ -1,0 +1,9 @@
+.tmp
+.vscode
+.DS_Store
+.env
+
+goserver
+__debug_bin*
+
+generated
