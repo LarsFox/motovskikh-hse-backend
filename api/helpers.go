@@ -18,7 +18,7 @@ const (
 	// https://stackoverflow.com/questions/34109053/what-file-size-is-data-if-its-450kb-base64-encoded
 	// Максимальный размер устанавливаю 1 МБ * 1.4, размер кодирования бэйс-64 с запасом.
 	// В Нжинксе указываю такое же значение.
-	maxBodySize = 1468006
+	maxBodySize = 50
 )
 
 // Внутренние ошибки.
