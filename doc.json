@@ -1,0 +1,231 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Motovskikh Tests API",
+    "description": "API для системы тестов и трекинга рекордов",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8080",
+  "basePath": "/",
+  "paths": {
+    "/stub/get/": {
+      "get": {
+        "summary": "Get stub data",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/stub/post/": {
+      "post": {
+        "summary": "Post stub data",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/stats/save/": {
+      "post": {
+        "summary": "Сохранить результат теста",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "test_id": {
+                  "type": "string",
+                  "description": "ID теста"
+                },
+                "version_id": {
+                  "type": "string",
+                  "description": "ID версии теста"
+                },
+                "user_hash": {
+                  "type": "string",
+                  "description": "Хэш пользователя для анонимного трекинга"
+                },
+                "score": {
+                  "type": "integer",
+                  "description": "Количество правильных ответов"
+                },
+                "max_score": {
+                  "type": "integer",
+                  "description": "Максимальное количество баллов"
+                },
+                "time_spent": {
+                  "type": "integer",
+                  "description": "Время прохождения в секундах"
+                },
+                "answers": {
+                  "type": "string",
+                  "description": "JSON с ответами пользователя"
+                }
+              },
+              "required": ["test_id", "score", "max_score", "time_spent"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результат сохранен",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "saved": {
+                      "type": "boolean"
+                    },
+                    "attempt_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Неверные параметры"
+          }
+        }
+      }
+    },
+    "/stats/analysis/": {
+      "post": {
+        "summary": "Получить анализ результатов теста",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "test_id": {
+                  "type": "string",
+                  "description": "ID теста"
+                },
+                "percentage": {
+                  "type": "number",
+                  "format": "float",
+                  "description": "Процент правильных ответов"
+                },
+                "time_spent": {
+                  "type": "integer",
+                  "description": "Время прохождения в секундах"
+                }
+              },
+              "required": ["test_id", "percentage", "time_spent"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Анализ результатов",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "your_percentage": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "your_time": {
+                      "type": "integer"
+                    },
+                    "percentile": {
+                      "type": "number",
+                      "format": "float",
+                      "description": "Процент пользователей, которых вы обогнали"
+                    },
+                    "better_than": {
+                      "type": "integer",
+                      "description": "Процент пользователей, которых вы обогнали (округлено)"
+                    },
+                    "average_percentage": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "average_time": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "total_attempts": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Неверные параметры"
+          }
+        }
+      }
+    },
+    "/dev/create-test-data/": {
+      "post": {
+        "summary": "Создать тестовые данные (только для разработки)",
+        "description": "Создает набор тестовых попыток для отладки системы статистики",
+        "responses": {
+          "200": {
+            "description": "Тестовые данные созданы",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "test_data_created": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ошибка сервера"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Error": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "example": false
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

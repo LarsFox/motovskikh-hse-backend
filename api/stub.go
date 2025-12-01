@@ -7,12 +7,14 @@ import (
 	"github.com/LarsFox/motovskikh-hse-backend/generated/models"
 )
 
+// Проверка подключения.
 func (m *Manager) hndlrStubGet(w http.ResponseWriter, r *http.Request) {
 	sup := fmt.Sprintf("sup, db %v, user-agent %s", m.manager.Stub(), r.Header.Get("User-Agent"))
 
 	w.Write([]byte(sup))
 }
 
+// Проверка работы.
 func (m *Manager) hndlrStubPost(w http.ResponseWriter, r *http.Request) {
 	prms := &models.GetTestRequest{}
 	if err := unmarshalParams(r, prms); err != nil {
