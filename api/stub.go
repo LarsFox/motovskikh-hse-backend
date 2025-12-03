@@ -4,13 +4,20 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/LarsFox/motovskikh-hse-backend/generated/models"
 )
 
 func (m *Manager) hndlrStubGet(w http.ResponseWriter, r *http.Request) {
-	sup := fmt.Sprintf("sup, db %v, user-agent %s", m.manager.Stub(), r.Header.Get("User-Agent"))
-
-	w.Write([]byte(sup))
+	_, err := fmt.Fprintf(
+		w,
+		"sup, db %v, user-agent %s",
+		m.manager.Stub(),
+		r.Header.Get("User-Agent"),
+	)
+	if err != nil {
+		entities.Notify(err)
+	}
 }
 
 func (m *Manager) hndlrStubPost(w http.ResponseWriter, r *http.Request) {
