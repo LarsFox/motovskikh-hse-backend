@@ -78,6 +78,7 @@ func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
 		routeGet("/stub/get/", m.hndlrStubGet),
 		routePost("/stub/post/", m.hndlrStubPost, m.wrapContentTypeJSON),
+		routeGet("/hello/", m.hndlrHello),
 	})
 }
 
@@ -109,4 +110,17 @@ func (m *Manager) send(w http.ResponseWriter, data interface{}) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		notify(err)
 	}
+}
+
+// hndlrHello обрабатывает GET /hello/
+func (m *Manager) hndlrHello(w http.ResponseWriter, r *http.Request) {
+	m.send(w, map[string]interface{}{
+		"message":   "Привет!",
+		"timestamp": time.Now().Unix(),
+		"student":   "Иванова Ева",
+		"status":    "success",
+		"course":    "HSE Backend",
+		"year":      2025,
+	})
+
 }

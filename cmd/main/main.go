@@ -14,27 +14,46 @@ import (
 // Пустое значение переменной подменяется с помощью флага -ldflags во время сборки.
 var Version string
 
+// без mysql.Config с ними че-то не то
 type config struct {
-	DB  *mysql.Config
 	Web *webConfig
 }
 
 type webConfig struct {
-	Addr string `envconfig:"default=:8090"`
+	Addr string `envconfig:"default=:1543"`
 }
 
 func main() {
 	log.Printf("Version %s", Version)
-	cfg := &config{}
-	if err := envconfig.InitWithPrefix(cfg, "motovskikh"); err != nil {
-		log.Fatal(err)
+
+	// только Web конфиг через envconfig
+	cfg := &config{
+		Web: &webConfig{},
 	}
 
-	// На всех проверках я подразумеваю, что сайт должен работать,
-	// даже если клиент не инициализировался.
+	// только Web часть
+	if err := envconfig.InitWithPrefix(cfg.Web, "motovskikh"); err != nil {
+		log.Printf("envconfig warning: %v", err)
+	}
+
+	// порт по умолчанию если не прочитался
+	if cfg.Web.Addr == "" {
+		cfg.Web.Addr = ":1543"
+	}
+
+	dbConfig := &mysql.Config{
+		User:    "root",   // из .env
+		Pass:    "root",   // из .env
+		Name:    "hse_db", // из .env
+		Host:    "127.0.0.1:3306",
+		MaxConn: 8,
+	}
+
+	// На всех проверках я подразумеваю, что сайт должен работать,
+	// даже если клиент не инициализировался.
 	//
 	// Если нет БД, лучше отдать индекс.хтмл, чем 500.
-	dbClient, err := mysql.NewClient(cfg.DB)
+	dbClient, err := mysql.NewClient(dbConfig)
 	check(err)
 
 	publicAPIManager := api.NewManager(

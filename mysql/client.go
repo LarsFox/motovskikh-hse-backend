@@ -10,11 +10,11 @@ import (
 
 // Config — конфигурация клиента.
 type Config struct {
-	Host    string `envconfig:"optional"`
-	Pass    string
-	MaxConn int `envconfig:"default=0"`
-	Name    string
-	User    string
+	Host    string `envconfig:"optional,default=localhost:3306"`
+	Pass    string `envconfig:"MOTOVSKIKH_DB_PASS"`
+	MaxConn int    `envconfig:"default=8"`
+	Name    string `envconfig:"MOTOVSKIKH_DB_NAME"`
+	User    string `envconfig:"MOTOVSKIKH_DB_USER"`
 }
 
 func (c *Config) connection() string {
