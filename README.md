@@ -1,20 +1,8 @@
 
 * Для генерации файлов устанавливаем [Свагер](https://github.com/go-swagger/go-swagger/releases)
 
-Общая архитектура ЛК разработчика тестов:
-Пользователь → [Frontend: JS] → [Backend: Go] → [БД: MySQL] → [Email: SMTP]
-                    ↑                              ↑
-                    └──── [WebSocket: Real-time] ←─┘
+<img width="1129" height="584" alt="image" src="https://github.com/user-attachments/assets/b4342a70-2df7-41f5-aaa0-6e82df4dbac7" />
 
-HTTP Request → [Server] → [Router] → [Handler] → [AuthService]
-                                                       ↓
-                [MySQLRepository] ← Данные пользователя
-                       ↓
-                [TokenService] ← Генерация токенов
-                       ↓
-                [EmailSender] ← Отправка письма
-                       ↓
-                [WebSocketHub] ← Уведомление о входе
 
 1) HTTP сервер (main.go) — принимает запросы
 2) Репозитроий MySQL — хранит пользователей и токены
