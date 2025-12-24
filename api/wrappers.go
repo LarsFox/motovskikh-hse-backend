@@ -10,7 +10,8 @@ type wrapper func(http.Handler) http.Handler
 func (m *Manager) wrapContentTypeJSON(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ct := r.Header.Get("Content-Type")
-		if strings.ToLower(ct) != "application/json; charset=utf-8" {
+		// Разрешаем оба варианта
+		if !strings.Contains(strings.ToLower(ct), "application/json") {
 			m.sendErrorPage(w, http.StatusBadRequest)
 			return
 		}

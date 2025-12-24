@@ -1,10 +1,9 @@
 package main
 
 import (
+	"flag"
 	"log"
-
 	"github.com/vrischmann/envconfig"
-
 	"github.com/LarsFox/motovskikh-hse-backend/api"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 	"github.com/LarsFox/motovskikh-hse-backend/mysql"
@@ -24,19 +23,31 @@ type webConfig struct {
 }
 
 func main() {
+	// Флаги командной строки
+	seedFlag := flag.Bool("seed", false, "Заполнить БД тестовыми данными")
+	flag.Parse()
+	
 	log.Printf("Version %s", Version)
 	cfg := &config{}
 	if err := envconfig.InitWithPrefix(cfg, "motovskikh"); err != nil {
 		log.Fatal(err)
 	}
 
-	// На всех проверках я подразумеваю, что сайт должен работать,
-	// даже если клиент не инициализировался.
-	//
-	// Если нет БД, лучше отдать индекс.хтмл, чем 500.
+	// Инициализация БД
 	dbClient, err := mysql.NewClient(cfg.DB)
 	check(err)
 
+	// Если указан флаг --seed, заполняем БД и выходим
+	if *seedFlag {
+		log.Println("Заполнение БД тестовыми данными...")
+		if err := dbClient.CreateTestData(); err != nil {
+			log.Fatalf("Ошибка при создании тестовых данных: %v", err)
+		}
+		log.Println("Тестовые данные успешно созданы!")
+		return
+	}
+
+	// Запуск основного приложения
 	publicAPIManager := api.NewManager(
 		manager.New(dbClient),
 	)

@@ -12,6 +12,9 @@
 ├── entities/              # Модели данных
 │   ├── languages.go      # Константы языков
 │   └── notify.go         # Логирование ошибок
+│   └── attempt.go
+│   └── attempt_result.go
+│   └── test.go
 ├── generated/            # Сгенерированный код Swagger
 │   └── models/          # Модели из swagger.yml
 ├── manager/              # Бизнес-логика (service layer)
@@ -19,16 +22,7 @@
 ├── mysql/               # Работа с БД (data access layer)
 │   ├── client.go       # Клиент MySQL
 │   └── stub.go         # Заглушка БД
+│   └── attempt_client.go
+│   └── stats_client.go
+│   └── test_data_client.go
 └── doc.json            # Swagger документация
-
-Архитектура (Clean Architecture):
-text
-HTTP Request
-    ↓
-[api/]           ← HTTP handlers (контроллеры)
-    ↓
-[manager/]       ← Use cases (бизнес-логика)  
-    ↓  
-[mysql/]         ← Data access (репозитории)
-    ↓
-MySQL Database

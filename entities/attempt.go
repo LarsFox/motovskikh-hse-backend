@@ -9,12 +9,13 @@ type Attempt struct {
 	ID         string    `json:"id" gorm:"primaryKey"`
 	TestID     string    `json:"test_id"`
 	VersionID  string    `json:"version_id"`
-	UserHash   string    `json:"user_hash"` // Хэш пользователя для анонимного трекинга.
+	UserHash   string    `json:"user_hash"`
 	Score      int       `json:"score"`
 	MaxScore   int       `json:"max_score"`
 	Percentage float64   `json:"percentage"`
-	TimeSpent  int       `json:"time_spent"` // в секундах.
-	Answers    string    `json:"answers"`    // JSON с ответами.
+	TimeSpent  int       `json:"time_spent"`
+	Answers    string    `json:"answers"`
+	IsValid    bool      `json:"is_valid"`
 	CreatedAt  time.Time `json:"created_at"`
 }
 

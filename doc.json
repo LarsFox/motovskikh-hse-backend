@@ -2,18 +2,24 @@
   "swagger": "2.0",
   "info": {
     "title": "Motovskikh Tests API",
-    "description": "API для системы тестов и трекинга рекордов",
+    "description": "API для системы трекинга рекордов",
     "version": "1.0.0"
   },
   "host": "localhost:8080",
   "basePath": "/",
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
   "paths": {
     "/stub/get/": {
       "get": {
         "summary": "Get stub data",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "schema": {
+              "type": "string"
+            }
           }
         }
       }
@@ -21,9 +27,33 @@
     "/stub/post/": {
       "post": {
         "summary": "Post stub data",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "test_id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
@@ -31,44 +61,15 @@
     "/stats/save/": {
       "post": {
         "summary": "Сохранить результат теста",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "name": "body",
             "in": "body",
             "required": true,
             "schema": {
-              "type": "object",
-              "properties": {
-                "test_id": {
-                  "type": "string",
-                  "description": "ID теста"
-                },
-                "version_id": {
-                  "type": "string",
-                  "description": "ID версии теста"
-                },
-                "user_hash": {
-                  "type": "string",
-                  "description": "Хэш пользователя для анонимного трекинга"
-                },
-                "score": {
-                  "type": "integer",
-                  "description": "Количество правильных ответов"
-                },
-                "max_score": {
-                  "type": "integer",
-                  "description": "Максимальное количество баллов"
-                },
-                "time_spent": {
-                  "type": "integer",
-                  "description": "Время прохождения в секундах"
-                },
-                "answers": {
-                  "type": "string",
-                  "description": "JSON с ответами пользователя"
-                }
-              },
-              "required": ["test_id", "score", "max_score", "time_spent"]
+              "$ref": "#/definitions/SaveAttemptRequest"
             }
           }
         ],
@@ -76,27 +77,14 @@
           "200": {
             "description": "Результат сохранен",
             "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean"
-                },
-                "result": {
-                  "type": "object",
-                  "properties": {
-                    "saved": {
-                      "type": "boolean"
-                    },
-                    "attempt_id": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
+              "$ref": "#/definitions/SuccessResponse"
             }
           },
           "400": {
-            "description": "Неверные параметры"
+            "description": "Неверные параметры",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
@@ -104,29 +92,15 @@
     "/stats/analysis/": {
       "post": {
         "summary": "Получить анализ результатов теста",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "name": "body",
             "in": "body",
             "required": true,
             "schema": {
-              "type": "object",
-              "properties": {
-                "test_id": {
-                  "type": "string",
-                  "description": "ID теста"
-                },
-                "percentage": {
-                  "type": "number",
-                  "format": "float",
-                  "description": "Процент правильных ответов"
-                },
-                "time_spent": {
-                  "type": "integer",
-                  "description": "Время прохождения в секундах"
-                }
-              },
-              "required": ["test_id", "percentage", "time_spent"]
+              "$ref": "#/definitions/GetAnalysisRequest"
             }
           }
         ],
@@ -134,88 +108,314 @@
           "200": {
             "description": "Анализ результатов",
             "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean"
-                },
-                "result": {
-                  "type": "object",
-                  "properties": {
-                    "your_percentage": {
-                      "type": "number",
-                      "format": "float"
-                    },
-                    "your_time": {
-                      "type": "integer"
-                    },
-                    "percentile": {
-                      "type": "number",
-                      "format": "float",
-                      "description": "Процент пользователей, которых вы обогнали"
-                    },
-                    "better_than": {
-                      "type": "integer",
-                      "description": "Процент пользователей, которых вы обогнали (округлено)"
-                    },
-                    "average_percentage": {
-                      "type": "number",
-                      "format": "float"
-                    },
-                    "average_time": {
-                      "type": "number",
-                      "format": "float"
-                    },
-                    "total_attempts": {
-                      "type": "integer"
-                    }
-                  }
-                }
-              }
+              "$ref": "#/definitions/SuccessResponse"
             }
           },
           "400": {
-            "description": "Неверные параметры"
+            "description": "Неверные параметры",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
     },
     "/dev/create-test-data/": {
       "post": {
-        "summary": "Создать тестовые данные (только для разработки)",
-        "description": "Создает набор тестовых попыток для отладки системы статистики",
+        "summary": "Создать тестовые данные",
+        "description": "Создает набор тестовых попыток для отладки",
+        "produces": ["application/json"],
         "responses": {
           "200": {
             "description": "Тестовые данные созданы",
             "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean"
-                },
-                "result": {
-                  "type": "object",
-                  "properties": {
-                    "test_data_created": {
-                      "type": "boolean"
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
+              "$ref": "#/definitions/SuccessResponse"
             }
           },
           "500": {
-            "description": "Ошибка сервера"
+            "description": "Ошибка сервера",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/tests/create/": {
+      "post": {
+        "summary": "Создать новый тест",
+        "description": "Создает тест с вопросами для прохождения",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateTestRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Тест создан",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Неверные параметры",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/tests/get/": {
+      "get": {
+        "summary": "Получить тест для прохождения",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "test_id",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Тест с вопросами",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "404": {
+            "description": "Тест не найден",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/tests/submit/": {
+      "post": {
+        "summary": "Отправить ответы на тест",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SubmitTestRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результат теста",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Неверные параметры",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/stats/detailed-analysis/": {
+      "post": {
+        "summary": "Получить детальный анализ результатов теста",
+        "description": "Возвращает более подробную статистику",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/GetDetailedAnalysisRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Детальный анализ теста",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Неверные параметры",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Ошибка сервера",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
     }
   },
   "definitions": {
-    "Error": {
+    "SaveAttemptRequest": {
+      "type": "object",
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "ID теста"
+        },
+        "version_id": {
+          "type": "string",
+          "description": "ID версии теста"
+        },
+        "user_hash": {
+          "type": "string",
+          "description": "Хэш пользователя"
+        },
+        "score": {
+          "type": "integer",
+          "description": "Количество правильных ответов"
+        },
+        "max_score": {
+          "type": "integer",
+          "description": "Максимальное количество баллов"
+        },
+        "time_spent": {
+          "type": "integer",
+          "description": "Время прохождения в секундах"
+        },
+        "answers": {
+          "type": "string",
+          "description": "JSON с ответами пользователя"
+        }
+      },
+      "required": ["test_id", "score", "max_score", "time_spent"]
+    },
+    "GetAnalysisRequest": {
+      "type": "object",
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "ID теста"
+        },
+        "percentage": {
+          "type": "number",
+          "format": "float",
+          "description": "Процент правильных ответов"
+        },
+        "time_spent": {
+          "type": "integer",
+          "description": "Время прохождения в секундах"
+        }
+      },
+      "required": ["test_id", "percentage", "time_spent"]
+    },
+    "CreateTestRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Название теста"
+        },
+        "description": {
+          "type": "string",
+          "description": "Описание теста"
+        },
+        "category": {
+          "type": "string",
+          "description": "Категория теста"
+        },
+        "difficulty": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "is_public": {
+          "type": "boolean"
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CreateQuestionRequest"
+          }
+        }
+      },
+      "required": ["title", "questions"]
+    },
+    "CreateQuestionRequest": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "question_type": {
+          "type": "string",
+          "enum": ["single", "multiple", "text"]
+        },
+        "options": {
+          "type": "string",
+          "description": "Варианты ответов в формате JSON"
+        },
+        "correct_answer": {
+          "type": "string",
+          "description": "Правильный ответ в формате JSON"
+        },
+        "points": {
+          "type": "integer"
+        },
+        "order_index": {
+          "type": "integer"
+        }
+      }
+    },
+    "SubmitTestRequest": {
+      "type": "object",
+      "properties": {
+        "test_id": {
+          "type": "string"
+        },
+        "answers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "question_id -> ответ"
+        },
+        "time_spent": {
+          "type": "integer",
+          "description": "Время прохождения в секундах"
+        }
+      },
+      "required": ["test_id", "answers"]
+    },
+    "SuccessResponse": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "ErrorResponse": {
       "type": "object",
       "properties": {
         "ok": {
@@ -226,6 +426,82 @@
           "type": "string"
         }
       }
+    },
+    "Test": {
+      "type": "object",
+      "properties": {
+        "test_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "difficulty": {
+          "type": "integer"
+        },
+        "created_by": {
+          "type": "string"
+        },
+        "is_public": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Question": {
+      "type": "object",
+      "properties": {
+        "question_id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "question_type": {
+          "type": "string"
+        },
+        "options": {
+          "type": "object"
+        },
+        "points": {
+          "type": "integer"
+        },
+        "order_index": {
+          "type": "integer"
+        }
+      }
+    },
+    "GetDetailedAnalysisRequest": {
+      "type": "object",
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "description": "ID теста"
+        },
+        "version_id": {
+          "type": "string",
+          "description": "ID версии теста"
+        },
+        "percentage": {
+          "type": "number",
+          "format": "float",
+          "description": "Процент правильных ответов"
+        },
+        "time_spent": {
+          "type": "integer",
+          "description": "Время прохождения в секундах"
+        }
+      },
+      "required": ["test_id", "percentage", "time_spent"]
     }
   }
 }

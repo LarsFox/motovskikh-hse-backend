@@ -1,13 +1,14 @@
 package mysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 	"gorm.io/driver/mysql"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
+	"github.com/google/uuid"
 )
 
 // Config — конфигурация клиента.
@@ -33,16 +34,21 @@ func (c *Config) connection() string {
 }
 
 func NewClient(cfg *Config) (*Client, error) {
-	// Через gorm подключаемся.
 	db, err := gorm.Open(mysql.Open(cfg.connection()))
 	if err != nil {
 		return nil, fmt.Errorf("dbs new client err: %w", err)
 	}
 
-	// Автоматическое создание таблиц.
+	// Автоматическое создание всех таблиц.
 	err = db.AutoMigrate(
+		&entities.Test{},
+		&entities.Question{},
+		&entities.TestConfig{},
 		&entities.Attempt{},
+		&entities.UserAnswer{},
 		&entities.TestStats{},
+		&entities.QuestionStats{},
+		&entities.TestVersion{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("dbs migrate err: %w", err)
@@ -57,141 +63,244 @@ func NewClient(cfg *Config) (*Client, error) {
 	return &Client{db: db}, nil
 }
 
-// Метод SaveAttempt - сохраняем попытку теста.
-func (c *Client) SaveAttempt(attempt *entities.Attempt) error {
-	err := c.db.Create(attempt).Error
-	if err != nil {
-		return err
-	}
-	
-	// Пересчет статистики через 10 попыток.
-	var count int64
-	c.db.Model(&entities.Attempt{}).Where("test_id = ?", attempt.TestID).Count(&count)
-	if count % 10 == 0 {
-		go c.CalculateTestStats(attempt.TestID)
-	}
-	
-	return nil
+// CreateTest создает новый тест.
+func (c *Client) CreateTest(test *entities.Test, questions []*entities.Question) error {
+    return c.db.Transaction(func(tx *gorm.DB) error {
+        // Создаем тест.
+        if err := tx.Create(test).Error; err != nil {
+            return err
+        }
+        // Создаем вопросы.
+        for _, q := range questions {
+            q.TestID = test.TestID
+            if err := tx.Create(q).Error; err != nil {
+                return err
+            }
+        }
+        // Создаем первую версию.
+        version := &entities.TestVersion{
+            VersionID:     uuid.New().String(),
+            TestID:        test.TestID,
+            VersionNumber: 1,
+            Description:   "Первая версия теста",
+            CreatedAt:     time.Now(),
+            IsActive:      true,
+        }
+        if err := tx.Create(version).Error; err != nil {
+            return err
+        }
+        // Создаем конфигурацию по умолчанию.
+        config := &entities.TestConfig{
+            ConfigID:           uuid.New().String(),
+            TestID:             test.TestID,
+            MinTimeSpent:       30,
+            MaxTimeSpent:       3600,
+            MinPercentage:      0,
+            MaxAttemptsPerUser: 3,
+            UpdatedAt:          time.Now(),
+        }
+        return tx.Create(config).Error
+    })
 }
 
-// Метод GetTestStats - возвращает статистику по тесту.
-func (c *Client) GetTestStats(testID string) (*entities.TestStats, error) {
-	var stats entities.TestStats
-	err := c.db.Where("test_id = ?", testID).
-		Order("date DESC").
-		First(&stats).Error
-		
-	if err == gorm.ErrRecordNotFound {
-		return nil, nil
+// GetTest возвращает тест с вопросами.
+func (c *Client) GetTest(testID string) (*entities.Test, []*entities.Question, error) {
+	var test entities.Test
+	if err := c.db.First(&test, "test_id = ?", testID).Error; err != nil {
+		return nil, nil, err
 	}
-	return &stats, err
+	
+	var questions []*entities.Question
+	if err := c.db.Where("test_id = ?", testID).
+		Order("order_index ASC").
+		Find(&questions).Error; err != nil {
+		return &test, nil, err
+	}
+	
+	// Скрываем правильные ответы.
+	for _, q := range questions {
+		q.CorrectAnswer = ""
+	}
+	
+	return &test, questions, nil
 }
 
-// GetUserPercentile возвращает перцентиль пользователя.
-func (c *Client) GetUserPercentile(testID string, percentage float64, timeSpent int) (float64, error) {
-	// Кол-во попыток хуже.
-	var worseAttempts int64
-	err := c.db.Model(&entities.Attempt{}).
-		Where("test_id = ? AND (percentage < ? OR (percentage = ? AND time_spent > ?))", 
-			testID, percentage, percentage, timeSpent).
-		Count(&worseAttempts).Error
-		
-	if err != nil {
-		return 0, err
-	}
-	
-	var totalAttempts int64
-	err = c.db.Model(&entities.Attempt{}).
-		Where("test_id = ?", testID).
-		Count(&totalAttempts).Error
-		
-	if err != nil || totalAttempts == 0 {
-		return 0, err
-	}
-	
-	// Перцентиль.
-	percentile := (float64(worseAttempts) + 0.5) / float64(totalAttempts) * 100
-	
-	if percentile > 100 {
-		percentile = 100
-	}
-	
-	return percentile, nil
+// CheckAnswers проверяет ответы и возвращает результат.
+func (c *Client) CheckAnswers(testID string, userHash string, answers map[string]string) (*entities.AttemptResult, error) {
+    // Получаем активную версию теста.
+    versionID, err := c.GetActiveVersionID(testID)
+    if err != nil {
+        versionID = ""
+    }
+    // Получаем вопросы с правильными ответами.
+    var questions []*entities.Question
+    if err := c.db.Where("test_id = ?", testID).
+        Order("order_index ASC").
+        Find(&questions).Error; err != nil {
+        return nil, err
+    }
+    // Проверяем каждый ответ.
+    totalScore := 0
+    maxScore := 0
+    userAnswers := make([]*entities.UserAnswer, 0, len(questions))
+    detailedResults := make([]entities.QuestionResult, 0, len(questions))
+    
+    for _, q := range questions {
+        maxScore += q.Points
+        
+        userAnswer, ok := answers[q.QuestionID]
+        if !ok {
+            // Пользователь не ответил на вопрос.
+            userAnswers = append(userAnswers, &entities.UserAnswer{
+                AnswerID:   uuid.New().String(),
+                QuestionID: q.QuestionID,
+                UserHash:   userHash,
+                Answer:     "",
+                IsCorrect:  false,
+                Score:      0,
+                CreatedAt:  time.Now(),
+            })
+            continue
+        }
+        
+        // Проверяем правильность ответа.
+        isCorrect := false
+        var correctAnswers []string
+        
+        if err := json.Unmarshal([]byte(q.CorrectAnswer), &correctAnswers); err != nil {
+            // Если не JSON, значит текстовый ответ.
+            isCorrect = strings.EqualFold(strings.TrimSpace(userAnswer), 
+                strings.TrimSpace(q.CorrectAnswer))
+        } else {
+            // Для multiple choice сравниваем JSON.
+            var userChoices []string
+            json.Unmarshal([]byte(userAnswer), &userChoices)
+
+            isCorrect = compareStringSlices(userChoices, correctAnswers)
+        }
+        score := 0
+        if isCorrect {
+            score = q.Points
+            totalScore += score
+        }
+        // Сохраняем детальный ответ.
+        userAnswers = append(userAnswers, &entities.UserAnswer{
+            AnswerID:   uuid.New().String(),
+            QuestionID: q.QuestionID,
+            UserHash:   userHash,
+            Answer:     userAnswer,
+            IsCorrect:  isCorrect,
+            Score:      score,
+            CreatedAt:  time.Now(),
+        })
+        
+        // Подробные результаты.
+        detailedResults = append(detailedResults, entities.QuestionResult{
+            QuestionID: q.QuestionID,
+            Text:       q.Text,
+            UserAnswer: userAnswer,
+            IsCorrect:  isCorrect,
+            Score:      score,
+            MaxScore:   q.Points,
+        })
+    }
+    
+    percentage := float64(totalScore) / float64(maxScore) * 100
+    
+    return &entities.AttemptResult{
+        TestID:       testID,
+        VersionID:    versionID,
+        UserHash:     userHash,
+        Score:        totalScore,
+        MaxScore:     maxScore,
+        Percentage:   percentage,
+        UserAnswers:  userAnswers,
+        Details:      detailedResults,
+    }, nil
 }
 
-// CreateTestData создает тестовые данные, чтобы тестить.
-func (c *Client) CreateTestData() error {
-	c.db.Exec("DELETE FROM attempts")
-	
-	testAttempts := []*entities.Attempt{
-		{ID: "test1", TestID: "europe_test", Score: 2, MaxScore: 10, Percentage: 20, TimeSpent: 600, CreatedAt: time.Now()},
-		{ID: "test2", TestID: "europe_test", Score: 3, MaxScore: 10, Percentage: 30, TimeSpent: 550, CreatedAt: time.Now()},
-		{ID: "test3", TestID: "europe_test", Score: 4, MaxScore: 10, Percentage: 40, TimeSpent: 500, CreatedAt: time.Now()},
-		{ID: "test4", TestID: "europe_test", Score: 5, MaxScore: 10, Percentage: 50, TimeSpent: 400, CreatedAt: time.Now()},
-		{ID: "test5", TestID: "europe_test", Score: 6, MaxScore: 10, Percentage: 60, TimeSpent: 350, CreatedAt: time.Now()},
-		{ID: "test6", TestID: "europe_test", Score: 7, MaxScore: 10, Percentage: 70, TimeSpent: 300, CreatedAt: time.Now()},
-		{ID: "test7", TestID: "europe_test", Score: 8, MaxScore: 10, Percentage: 80, TimeSpent: 250, CreatedAt: time.Now()},
-		{ID: "test8", TestID: "europe_test", Score: 9, MaxScore: 10, Percentage: 90, TimeSpent: 200, CreatedAt: time.Now()},
-		{ID: "test9", TestID: "europe_test", Score: 10, MaxScore: 10, Percentage: 100, TimeSpent: 150, CreatedAt: time.Now()},
-	}
-	
-	for _, attempt := range testAttempts {
-		if err := c.db.Create(attempt).Error; err != nil {
+// Вспомогательная функция для сравнения строк.
+func compareStringSlices(a, b []string) bool {
+    if len(a) != len(b) {
+        return false
+    }
+    // Создаем map для сравнения без учета порядка.
+    mapA := make(map[string]int)
+    mapB := make(map[string]int)
+    for _, val := range a {
+        mapA[val]++
+    }
+    for _, val := range b {
+        mapB[val]++
+    }
+    // Сравниваем.
+    if len(mapA) != len(mapB) {
+        return false
+    }
+    for key, countA := range mapA {
+        if countB, ok := mapB[key]; !ok || countB != countA {
+            return false
+        }
+    }
+    return true
+}
+// SaveFullAttempt сохраняет полную попытку с ответами.
+func (c *Client) SaveFullAttempt(attempt *entities.Attempt, userAnswers []*entities.UserAnswer) error {
+	return c.db.Transaction(func(tx *gorm.DB) error {
+		// Сохраняем основную попытку.
+		if err := tx.Create(attempt).Error; err != nil {
 			return err
 		}
-	}
-	return nil
+		// Сохраняем ответы на вопросы.
+		for _, answer := range userAnswers {
+			answer.AttemptID = attempt.ID
+			if err := tx.Create(answer).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
-// CalculateTestStats вычисляет статистику по тесту.
-func (c *Client) CalculateTestStats(testID string) error {
-	var avgPercentage float64
-	var avgTimeSpent float64
-	var totalAttempts int64
-	
-	// Средний процент.
-	err := c.db.Model(&entities.Attempt{}).
-		Where("test_id = ?", testID).
-		Select("AVG(percentage)").
-		Scan(&avgPercentage).Error
-	if err != nil {
-		return err
-	}
-	
-	// Среднее время.
-	err = c.db.Model(&entities.Attempt{}).
-		Where("test_id = ?", testID).
-		Select("AVG(time_spent)").
-		Scan(&avgTimeSpent).Error
-	if err != nil {
-		return err
-	}
-	
-	// Общее количество.
-	err = c.db.Model(&entities.Attempt{}).
-		Where("test_id = ?", testID).
-		Count(&totalAttempts).Error
-	if err != nil {
-		return err
-	}
-	
-	// Для простоты.
-	percentile50 := avgPercentage * 0.9
-	percentile80 := avgPercentage * 1.1
-	percentile95 := avgPercentage * 1.2
-	
-	stats := &entities.TestStats{
-		ID:            uuid.New().String(),
-		TestID:        testID,
-		Date:          time.Now(),
-		TotalAttempts: int(totalAttempts),
-		ValidAttempts: int(totalAttempts),
-		AvgPercentage: avgPercentage,
-		AvgTimeSpent:  avgTimeSpent,
-		Percentile50:  percentile50,
-		Percentile80:  percentile80,
-		Percentile95:  percentile95,
-	}
-	
-	return c.db.Create(stats).Error
+// CreateNewVersion создает новую версию теста.
+func (c *Client) CreateNewVersion(testID, description string) (string, error) {
+    // Находим текущую максимальную версию.
+    var maxVersion int
+    err := c.db.Model(&entities.TestVersion{}).
+        Where("test_id = ?", testID).
+        Select("COALESCE(MAX(version_number), 0)").
+        Scan(&maxVersion).Error
+    if err != nil {
+        return "", err
+    }
+    
+    // Деактивируем старые версии.
+    err = c.db.Model(&entities.TestVersion{}).
+        Where("test_id = ?", testID).
+        Update("is_active", false).Error
+    if err != nil {
+        return "", err
+    }
+    
+    // Создаем новую версию.
+    version := &entities.TestVersion{
+        VersionID:     uuid.New().String(),
+        TestID:        testID,
+        VersionNumber: maxVersion + 1,
+        Description:   description,
+        CreatedAt:     time.Now(),
+        IsActive:      true,
+    }
+    return version.VersionID, c.db.Create(version).Error
+}
+
+// GetActiveVersionID возвращает ID активной версии теста.
+func (c *Client) GetActiveVersionID(testID string) (string, error) {
+    var version entities.TestVersion
+    err := c.db.Where("test_id = ? AND is_active = ?", testID, true).
+        First(&version).Error
+    if err != nil {
+        return "", err
+    }
+    return version.VersionID, nil
 }

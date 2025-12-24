@@ -5,23 +5,39 @@ import (
 	"log"
 	"net/http"
 	"time"
-
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/google/uuid"
 )
 
+// SaveAttemptRequest -  Cохранение попытки.
+type SaveAttemptRequest struct {
+	TestID    string `json:"test_id"`
+	VersionID string `json:"version_id"`
+	UserHash  string `json:"user_hash"`
+	Score     int    `json:"score"`
+	MaxScore  int    `json:"max_score"`
+	TimeSpent int    `json:"time_spent"`
+	Answers   string `json:"answers"`
+}
+
+// GetAnalysisRequest - Запрос для анализа.
+type GetAnalysisRequest struct {
+	TestID     string  `json:"test_id"`
+	Percentage float64 `json:"percentage"`
+	TimeSpent  int     `json:"time_spent"`
+}
+
+// GetDetailedAnalysisRequest - Запрос для подробного анализа.
+type GetDetailedAnalysisRequest struct {
+    TestID     string  `json:"test_id"`
+    VersionID  string  `json:"version_id"`
+    Percentage float64 `json:"percentage"`
+    TimeSpent  int     `json:"time_spent"`
+}
+
 // Метод hndlrSaveAttempt - сохраняет результат теста.
 func (m *Manager) hndlrSaveAttempt(w http.ResponseWriter, r *http.Request) {
-	// Парсинг json.
-	var req struct {
-		TestID    string `json:"test_id"`
-		VersionID string `json:"version_id"`
-		UserHash  string `json:"user_hash"`
-		Score     int    `json:"score"`
-		MaxScore  int    `json:"max_score"`
-		TimeSpent int    `json:"time_spent"`
-		Answers   string `json:"answers"`
-	}
+	var req SaveAttemptRequest
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("SaveAttempt JSON decode error: %v", err)
@@ -87,11 +103,7 @@ func (m *Manager) hndlrSaveAttempt(w http.ResponseWriter, r *http.Request) {
 
 // Метод hndlrGetAnalysis - возвращает анализ результатов.
 func (m *Manager) hndlrGetAnalysis(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		TestID    string  `json:"test_id"`
-		Percentage float64 `json:"percentage"`
-		TimeSpent int     `json:"time_spent"`
-	}
+	var req GetAnalysisRequest
 	
 	// Парсинг.
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -144,9 +156,44 @@ func (m *Manager) hndlrGetAnalysis(w http.ResponseWriter, r *http.Request) {
 	m.send(w, response)
 }
 
+// Метод hndlrGetDetailedAnalysis - возвращает подробный анализ результатов.
+func (m *Manager) hndlrGetDetailedAnalysis(w http.ResponseWriter, r *http.Request) {
+    var req GetDetailedAnalysisRequest
+    
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        log.Printf("GetDetailedAnalysis JSON decode error: %v", err)
+        m.sendErrorPage(w, http.StatusBadRequest)
+        return
+    }
+    
+    log.Printf("GetDetailedAnalysis request: %+v", req)
+    
+    // Валидация.
+    if req.TestID == "" {
+        log.Printf("GetDetailedAnalysis validation: empty test_id")
+        m.sendErrorPage(w, http.StatusBadRequest)
+        return
+    }
+    
+    // Получаем детальный анализ.
+    analysis, err := m.manager.GetDetailedAnalysis(req.TestID, req.VersionID, req.Percentage, req.TimeSpent)
+    if err != nil {
+        log.Printf("GetDetailedAnalysis manager error: %v", err)
+        m.sendErrorPage(w, http.StatusInternalServerError)
+        return
+    }
+    
+    log.Printf("Детальный анализ сделан: %s", req.TestID)
+    
+    m.send(w, analysis)
+}
+
 // Для создания тестовых данных.
 func (m *Manager) hndlrCreateTestData(w http.ResponseWriter, r *http.Request) {
+	log.Println("Запрос на создание тестовых данных")
+	
 	if err := m.manager.CreateTestData(); err != nil {
+		log.Printf("Ошибка создания тестовых данных: %v", err)
 		m.sendErrorPage(w, http.StatusInternalServerError)
 		return
 	}

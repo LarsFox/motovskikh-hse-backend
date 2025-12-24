@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"time"
-
 	"github.com/gorilla/mux" // Роутер.
 	httpSwagger "github.com/swaggo/http-swagger" // Сваггер.
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
@@ -55,9 +54,25 @@ func NewManager(manager *manager.Manager) *Manager {
 	}
 
 	m.addRoutes()
-	m.router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+	
+	// Настройка Swagger UI.
+	swaggerHandler := httpSwagger.Handler(
+		httpSwagger.URL("/doc.json"),
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+		httpSwagger.DomID("swagger-ui"),
+	)
+	
+	m.router.PathPrefix("/swagger/").Handler(swaggerHandler)
 	return m
 }
+
+func (m *Manager) enableCORS(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-Hash")
+}
+
 
 // Listen запускает сервер на указанном порту.
 func (m *Manager) Listen(addr string) error {
@@ -79,23 +94,21 @@ func (m *Manager) addRoutes() {
 		routeGet("/stub/get/", m.hndlrStubGet),
 		routePost("/stub/post/", m.hndlrStubPost),
 		routeGet("/doc.json", m.hndlrSwaggerJSON),
-		// Новые маршруты для статистики.
 		routePost("/stats/save/", m.hndlrSaveAttempt),
 		routePost("/stats/analysis/", m.hndlrGetAnalysis),
 		routePost("/dev/create-test-data/", m.hndlrCreateTestData),
+		routePost("/tests/create/", m.hndlrCreateTest, m.wrapContentTypeJSON),
+		routeGet("/tests/get/", m.hndlrGetTest),
+		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON),
+		routePost("/stats/detailed-analysis/", m.hndlrGetDetailedAnalysis),
 	})
-	log.Println("Routes registered: /stats/save/, /stats/analysis/")
-	m.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-        httpSwagger.URL("/doc.json"),
-    ))
-	m.router.HandleFunc("/doc.json", func(w http.ResponseWriter, r *http.Request) {
-        http.ServeFile(w, r, "./doc.json")
-    })
+	log.Println("Routes registered")
+
 }
 
 // addHandlers добавляет пути и обработчики запросов в мультиплексор (mux).
 func (m *Manager) addHandlers(routes []route) {
-	essentialWrappers := []wrapper{m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover}
+	essentialWrappers := []wrapper{m.wrapCORS, m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover}
 	for _, r := range routes {
 		var wrapper http.Handler = r.Handler
 		for _, w := range r.Wrappers {
@@ -110,6 +123,7 @@ func (m *Manager) addHandlers(routes []route) {
 
 // send responds with a success.
 func (m *Manager) send(w http.ResponseWriter, data interface{}) {
+	m.enableCORS(w)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -124,5 +138,6 @@ func (m *Manager) send(w http.ResponseWriter, data interface{}) {
 }
 
 func (m *Manager) hndlrSwaggerJSON(w http.ResponseWriter, r *http.Request) {
-    http.ServeFile(w, r, "./doc.json")
+	m.enableCORS(w)
+  http.ServeFile(w, r, "./doc.json")
 }
