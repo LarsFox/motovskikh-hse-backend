@@ -10,3 +10,33 @@
 4) Email sender — отправляет magic-link на почту
 5) WebSocket hub — для real-time уведомлений
 6) HTML шаблоны + JavaScript = взаимодействие с пользователем
+
+Структура проекта на 26.01:
+coursework/
+├── cmd/
+│       └── main.go
+│
+├── internal/
+│   ├── handlers/            ← HTTP (GET / POST)
+│   │   └── user_handler.go
+│   │
+│   │
+│   ├── repository/          ← работа с БД
+│   │   ├── user_repository.go       
+│   │   └── mysql_user_repository.go 
+│   │
+│   └── models/
+│       └── user.go
+│
+├── web/
+│   ├── templates/           ← тут HTML
+│   │   └── register.html
+│   │
+│   └── static/              ← позже будет CSS / JS
+│       └── style.css
+│
+├── .env
+├── .gitignore
+├── go.mod
+├── go.sum
+└── README.md
