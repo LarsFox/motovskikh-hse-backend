@@ -14,38 +14,35 @@ import (
 // Пустое значение переменной подменяется с помощью флага -ldflags во время сборки.
 var Version string
 
-// без mysql.Config с ними че-то не то
 type config struct {
-	Web *webConfig
+	Web webConfig
+	DB  dbConfig
 }
 
 type webConfig struct {
-	Addr string `envconfig:"default=:1543"`
+	Addr string `envconfig:"default=:8090"`
+}
+
+type dbConfig struct {
+	User string `envconfig:"default=root"`
+	Pass string `envconfig:"default="`
+	Name string `envconfig:"default=hse_db"`
+	Host string `envconfig:"default=127.0.0.1:3306"`
 }
 
 func main() {
 	log.Printf("Version %s", Version)
 
-	// только Web конфиг через envconfig
-	cfg := &config{
-		Web: &webConfig{},
-	}
-
-	// только Web часть
-	if err := envconfig.InitWithPrefix(cfg.Web, "motovskikh"); err != nil {
+	var cfg config
+	if err := envconfig.InitWithPrefix(&cfg, "MOTOVSKIKH"); err != nil {
 		log.Printf("envconfig warning: %v", err)
 	}
 
-	// порт по умолчанию если не прочитался
-	if cfg.Web.Addr == "" {
-		cfg.Web.Addr = ":1543"
-	}
-
 	dbConfig := &mysql.Config{
-		User:    "root",   // из .env
-		Pass:    "root",   // из .env
-		Name:    "hse_db", // из .env
-		Host:    "127.0.0.1:3306",
+		User:    cfg.DB.User,
+		Pass:    cfg.DB.Pass,
+		Name:    cfg.DB.Name,
+		Host:    cfg.DB.Host,
 		MaxConn: 8,
 	}
 

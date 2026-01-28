@@ -76,9 +76,9 @@ func (m *Manager) Listen(addr string) error {
 
 func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
-		routeGet("/stub/get/", m.hndlrStubGet),
-		routePost("/stub/post/", m.hndlrStubPost, m.wrapContentTypeJSON),
-		routeGet("/hello/", m.hndlrHello),
+		routeGet("/api/v1/stub/get", m.hndlrStubGet),
+		routePost("/api/v1/stub/post", m.hndlrStubPost, m.wrapContentTypeJSON),
+		routeGet("/api/v1/hello", m.hndlrHello),
 	})
 }
 
