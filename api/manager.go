@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 	"time"
-	"github.com/gorilla/mux" // Роутер.
-	httpSwagger "github.com/swaggo/http-swagger" // Сваггер.
+	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 )
 
@@ -16,13 +16,11 @@ const (
 	defaultIdleTimeout  = time.Second * 30
 )
 
-// Manager is an API manager and listener.
 type Manager struct {
 	manager *manager.Manager
 	router  *mux.Router
 }
 
-// route is a single path for a mux handler.
 type route struct {
 	Method   string
 	Path     string
@@ -30,21 +28,13 @@ type route struct {
 	Wrappers []wrapper
 }
 
+
 func routeGet(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
-	return newRoute(http.MethodGet, path, handler, wrappers...)
+	return route{http.MethodGet, path, handler, wrappers}
 }
 
 func routePost(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
-	return newRoute(http.MethodPost, path, handler, wrappers...)
-}
-
-func newRoute(method, path string, handler http.HandlerFunc, wrappers ...wrapper) route {
-	return route{
-		method,
-		path,
-		handler,
-		wrappers,
-	}
+	return route{http.MethodPost, path, handler, wrappers}
 }
 
 func NewManager(manager *manager.Manager) *Manager {
@@ -55,7 +45,7 @@ func NewManager(manager *manager.Manager) *Manager {
 
 	m.addRoutes()
 	
-	// Настройка Swagger UI.
+	// Swagger
 	swaggerHandler := httpSwagger.Handler(
 		httpSwagger.URL("/doc.json"),
 		httpSwagger.DeepLinking(true),
@@ -67,14 +57,6 @@ func NewManager(manager *manager.Manager) *Manager {
 	return m
 }
 
-func (m *Manager) enableCORS(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-Hash")
-}
-
-
-// Listen запускает сервер на указанном порту.
 func (m *Manager) Listen(addr string) error {
 	log.Println("API started on addr", addr)
 
@@ -91,24 +73,19 @@ func (m *Manager) Listen(addr string) error {
 
 func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
-		routeGet("/stub/get/", m.hndlrStubGet),
-		routePost("/stub/post/", m.hndlrStubPost),
 		routeGet("/doc.json", m.hndlrSwaggerJSON),
-		routePost("/stats/save/", m.hndlrSaveAttempt),
-		routePost("/stats/analysis/", m.hndlrGetAnalysis),
-		routePost("/dev/create-test-data/", m.hndlrCreateTestData),
-		routePost("/tests/create/", m.hndlrCreateTest, m.wrapContentTypeJSON),
-		routeGet("/tests/get/", m.hndlrGetTest),
-		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON),
-		routePost("/stats/detailed-analysis/", m.hndlrGetDetailedAnalysis),
+		routeGet("/tests/get/", m.hndlrGetTest),           // Получить тест.
+		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON), // Отправить ответы.
+		routePost("/stats/analysis/", m.hndlrGetAnalysis), // Базовый анализ.
+		routePost("/stats/advanced-analysis/", m.hndlrGetAdvancedAnalysis, m.wrapContentTypeJSON), // Подробный анализ.
+		// Для разработки.
+		routePost("/dev/create-test-data/", m.hndlrCreateTestData), // Создать тестовые данные.
 	})
 	log.Println("Routes registered")
-
 }
 
-// addHandlers добавляет пути и обработчики запросов в мультиплексор (mux).
 func (m *Manager) addHandlers(routes []route) {
-	essentialWrappers := []wrapper{m.wrapCORS, m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover}
+	essentialWrappers := []wrapper{m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover}
 	for _, r := range routes {
 		var wrapper http.Handler = r.Handler
 		for _, w := range r.Wrappers {
@@ -121,9 +98,7 @@ func (m *Manager) addHandlers(routes []route) {
 	}
 }
 
-// send responds with a success.
 func (m *Manager) send(w http.ResponseWriter, data interface{}) {
-	m.enableCORS(w)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -138,6 +113,5 @@ func (m *Manager) send(w http.ResponseWriter, data interface{}) {
 }
 
 func (m *Manager) hndlrSwaggerJSON(w http.ResponseWriter, r *http.Request) {
-	m.enableCORS(w)
-  http.ServeFile(w, r, "./doc.json")
+	http.ServeFile(w, r, "./doc.json")
 }

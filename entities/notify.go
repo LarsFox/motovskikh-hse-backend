@@ -10,8 +10,7 @@ var (
 	ErrInvalidInput = errors.New("your input is invalid")
 )
 
-// Notify сообщает в мониторинг об ошибке.
-// Вышка: заменил на обычный Лог.
+// Notify сообщает об ошибке.
 func Notify(e error, meta ...map[string]any) {
 	if len(meta) == 0 {
 		log.Println(e)
