@@ -2,139 +2,39 @@ package api
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
-	"time"
+	"fmt"
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
-	"github.com/google/uuid"
+	"math"
+	"strings"
 )
 
-// SaveAttemptRequest -  Cохранение попытки.
-type SaveAttemptRequest struct {
-	TestID    string `json:"test_id"`
-	VersionID string `json:"version_id"`
-	UserHash  string `json:"user_hash"`
-	Score     int    `json:"score"`
-	MaxScore  int    `json:"max_score"`
-	TimeSpent int    `json:"time_spent"`
-	Answers   string `json:"answers"`
-}
-
-// GetAnalysisRequest - Запрос для анализа.
 type GetAnalysisRequest struct {
 	TestID     string  `json:"test_id"`
 	Percentage float64 `json:"percentage"`
 	TimeSpent  int     `json:"time_spent"`
 }
 
-// GetDetailedAnalysisRequest - Запрос для подробного анализа.
-type GetDetailedAnalysisRequest struct {
-    TestID     string  `json:"test_id"`
-    VersionID  string  `json:"version_id"`
-    Percentage float64 `json:"percentage"`
-    TimeSpent  int     `json:"time_spent"`
-}
+// МЕТОДЫ-ХЭНДЛЕРЫ.
 
-// Метод hndlrSaveAttempt - сохраняет результат теста.
-func (m *Manager) hndlrSaveAttempt(w http.ResponseWriter, r *http.Request) {
-	var req SaveAttemptRequest
-	
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("SaveAttempt JSON decode error: %v", err)
-		m.sendErrorPage(w, http.StatusBadRequest)
-		return
-	}
-	
-	log.Printf("SaveAttempt request: %+v", req)
-	
-	// Базовая валидация.
-	if req.TestID == "" {
-		log.Printf("SaveAttempt validation: empty test_id")
-		m.sendErrorPage(w, http.StatusBadRequest)
-		return
-	}
-	if req.Score < 0 {
-		log.Printf("SaveAttempt validation: score < 0")
-		m.sendErrorPage(w, http.StatusBadRequest)
-		return
-	}
-	if req.MaxScore <= 0 {
-		log.Printf("SaveAttempt validation: max_score <= 0")
-		m.sendErrorPage(w, http.StatusBadRequest)
-		return
-	}
-	if req.TimeSpent <= 0 {
-		log.Printf("SaveAttempt validation: time_spent <= 0")
-		m.sendErrorPage(w, http.StatusBadRequest)
-		return
-	}
-	
-	// Рассчитываем процент и создаем сущность.
-	percentage := float64(req.Score) / float64(req.MaxScore) * 100
-	
-	attempt := &entities.Attempt{
-		ID:         uuid.New().String(),
-		TestID:     req.TestID,
-		VersionID:  req.VersionID,
-		UserHash:   req.UserHash,
-		Score:      req.Score,
-		MaxScore:   req.MaxScore,
-		Percentage: percentage,
-		TimeSpent:  req.TimeSpent,
-		Answers:    req.Answers,
-		CreatedAt:  time.Now(),
-	}
-	
-	log.Printf("Saving attempt: %+v", attempt)
-	// Сохраняем.
-	if err := m.manager.SaveTestAttempt(attempt); err != nil {
-		log.Printf("SaveAttempt DB error: %v", err)
-		m.sendErrorPage(w, http.StatusInternalServerError)
-		return
-	}
-	
-	log.Printf("Attempt saved: %s", attempt.ID)
-	// Возвращаем удачный результат.
-	m.send(w, map[string]interface{}{
-		"saved":      true,
-		"attempt_id": attempt.ID,
-	})
-}
-
-// Метод hndlrGetAnalysis - возвращает анализ результатов.
+// hndlrGetAnalysis возвращает анализ результатов.
 func (m *Manager) hndlrGetAnalysis(w http.ResponseWriter, r *http.Request) {
 	var req GetAnalysisRequest
-	
-	// Парсинг.
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("GetAnalysis JSON decode error: %v", err)
-		m.sendErrorPage(w, http.StatusBadRequest)
+		m.sendError(w, http.StatusBadRequest, "Invalid JSON")
 		return
 	}
-	
-	log.Printf("GetAnalysis request: %+v", req)
 	
 	// Валидация.
-	if req.TestID == "" {
-		log.Printf("GetAnalysis validation: empty test_id")
-		m.sendErrorPage(w, http.StatusBadRequest)
+	if req.TestID == "" || req.Percentage < 0 || req.Percentage > 100 || req.TimeSpent <= 0 {
+		m.sendError(w, http.StatusBadRequest, "Invalid parameters")
 		return
 	}
-	if req.Percentage < 0 || req.Percentage > 100 {
-		log.Printf("GetAnalysis validation: percentage out of range: %f", req.Percentage)
-		m.sendErrorPage(w, http.StatusBadRequest)
-		return
-	}
-	if req.TimeSpent <= 0 {
-		log.Printf("GetAnalysis validation: time_spent <= 0")
-		m.sendErrorPage(w, http.StatusBadRequest)
-		return
-	}
+	
 	// Получаем анализ.
 	stats, percentile, err := m.manager.GetTestAnalysis(req.TestID, req.Percentage, req.TimeSpent)
 	if err != nil {
-		log.Printf("GetAnalysis manager error: %v", err)
-		m.sendErrorPage(w, http.StatusInternalServerError)
+		m.sendError(w, http.StatusInternalServerError, "Failed to get analysis")
 		return
 	}
 	
@@ -151,55 +51,157 @@ func (m *Manager) hndlrGetAnalysis(w http.ResponseWriter, r *http.Request) {
 		response["total_attempts"] = stats.TotalAttempts
 	}
 	
-	log.Printf("Analysis response: %+v", response)
+	m.send(w, response)
+}
+
+// hndlrGetAdvancedAnalysis возвращает расширенный анализ.
+func (m *Manager) hndlrGetAdvancedAnalysis(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AttemptID string `json:"attempt_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		m.sendError(w, http.StatusBadRequest, "Invalid JSON")
+		return
+	}
+	
+	if req.AttemptID == "" {
+		m.sendError(w, http.StatusBadRequest, "attempt_id is required")
+		return
+	}
+	
+	// Получаем детальный анализ из менеджера.
+	analysis, err := m.manager.GetDetailedAnalysis(req.AttemptID)
+	if err != nil {
+		m.sendError(w, http.StatusInternalServerError, "Failed to get analysis: "+err.Error())
+		return
+	}
+	
+	// Форматируем.
+	response := map[string]interface{}{
+		"analysis": analysis,
+		"summary": m.formatAnalysisSummary(analysis),
+		"comparison": m.formatComparisonData(analysis),
+	}
 	
 	m.send(w, response)
 }
 
-// Метод hndlrGetDetailedAnalysis - возвращает подробный анализ результатов.
-func (m *Manager) hndlrGetDetailedAnalysis(w http.ResponseWriter, r *http.Request) {
-    var req GetDetailedAnalysisRequest
-    
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        log.Printf("GetDetailedAnalysis JSON decode error: %v", err)
-        m.sendErrorPage(w, http.StatusBadRequest)
-        return
-    }
-    
-    log.Printf("GetDetailedAnalysis request: %+v", req)
-    
-    // Валидация.
-    if req.TestID == "" {
-        log.Printf("GetDetailedAnalysis validation: empty test_id")
-        m.sendErrorPage(w, http.StatusBadRequest)
-        return
-    }
-    
-    // Получаем детальный анализ.
-    analysis, err := m.manager.GetDetailedAnalysis(req.TestID, req.VersionID, req.Percentage, req.TimeSpent)
-    if err != nil {
-        log.Printf("GetDetailedAnalysis manager error: %v", err)
-        m.sendErrorPage(w, http.StatusInternalServerError)
-        return
-    }
-    
-    log.Printf("Детальный анализ сделан: %s", req.TestID)
-    
-    m.send(w, analysis)
+// formatAnalysisSummary форматирует анализ.
+func (m *Manager) formatAnalysisSummary(analysis *entities.DetailedAnalysis) map[string]interface{} {
+	return map[string]interface{}{
+		"skill_level": analysis.SkillLevel,
+		"category":    analysis.DistributionCategory.Name,
+		"message":     m.generateSummaryMessage(analysis),
+	}
 }
 
-// Для создания тестовых данных.
-func (m *Manager) hndlrCreateTestData(w http.ResponseWriter, r *http.Request) {
-	log.Println("Запрос на создание тестовых данных")
+// formatComparisonData форматирует данные для сравнения.
+func (m *Manager) formatComparisonData(analysis *entities.DetailedAnalysis) map[string]interface{} {
+	return map[string]interface{}{
+		"percentile_rank":   fmt.Sprintf("%.1f%%", analysis.PercentileRank),
+		"time_percentile":   fmt.Sprintf("%.1f%%", analysis.TimePercentile),
+		"better_than_users": fmt.Sprintf("%.0f%%", analysis.PercentileRank),
+		"faster_than_users": fmt.Sprintf("%.0f%%", analysis.TimePercentile),
+		"vs_average": map[string]interface{}{
+			"score_diff":     analysis.Percentage - analysis.TestStats.AvgPercentage,
+			"time_diff":      float64(analysis.TimeSpent) - analysis.TestStats.AvgTimeSpent,
+			"score_status":   m.getDiffStatus(analysis.Percentage, analysis.TestStats.AvgPercentage),
+			"time_status":    m.getTimeDiffStatus(float64(analysis.TimeSpent), analysis.TestStats.AvgTimeSpent),
+		},
+	}
+}
+
+// generateSummaryMessage генерирует сообщение для пользователя.
+func (m *Manager) generateSummaryMessage(analysis *entities.DetailedAnalysis) string {
+	var messages []string
 	
+	// Основное сообщение по категории.
+	switch analysis.DistributionCategory.Name {
+	case "elite":
+		messages = append(messages, "Это элита. Превосходный результат!")
+	case "excellent":
+		messages = append(messages, "Отличный результат! Вы в топ-10% участников.")
+	case "good":
+		messages = append(messages, "Хорошая работа! Вы лучше большинства участников.")
+	case "average":
+		messages = append(messages, "Средний результат. Есть, куда расти.")
+	case "below_average":
+		messages = append(messages, "Ниже среднего. Побольше практики.")
+	case "needs_improvement":
+		messages = append(messages, "Плохо.")
+	}
+	
+	// Добавляем сравнение со средним.
+	avgDiff := analysis.Percentage - analysis.TestStats.AvgPercentage
+	if avgDiff > 10 {
+		messages = append(messages, fmt.Sprintf("На %.1f%% выше среднего показателя!", avgDiff))
+	} else if avgDiff < -10 {
+		messages = append(messages, fmt.Sprintf("На %.1f%% ниже среднего показателя.", math.Abs(avgDiff)))
+	}
+	
+	return strings.Join(messages, " ")
+}
+
+// getDiffStatus определяет статус разницы.
+func (m *Manager) getDiffStatus(userValue, avgValue float64) string {
+	diff := userValue - avgValue
+	if diff > 10 {
+		return "significantly_higher"
+	} else if diff > 5 {
+		return "higher"
+	} else if diff < -10 {
+		return "significantly_lower"
+	} else if diff < -5 {
+		return "lower"
+	}
+	return "similar"
+}
+
+// getTimeDiffStatus определяет статус разницы во времени.
+func (m *Manager) getTimeDiffStatus(userTime, avgTime float64) string {
+	diff := userTime - avgTime
+	if diff < -30 {
+		return "much_faster"
+	} else if diff < -10 {
+		return "faster"
+	} else if diff > 30 {
+		return "much_slower"
+	} else if diff > 10 {
+		return "slower"
+	}
+	return "similar"
+}
+
+// hndlrCreateTestData создает тестовые данные.
+func (m *Manager) hndlrCreateTestData(w http.ResponseWriter, r *http.Request) {
 	if err := m.manager.CreateTestData(); err != nil {
-		log.Printf("Ошибка создания тестовых данных: %v", err)
-		m.sendErrorPage(w, http.StatusInternalServerError)
+		m.sendError(w, http.StatusInternalServerError, "Failed to create test data: "+err.Error())
 		return
+	}
+	
+	// Получаем список всех созданных тестов для отображения.
+	testIDs := []string{"1"}
+	
+	// Проверяем существование каждого теста.
+	availableTests := []map[string]interface{}{}
+	for _, testID := range testIDs {
+		test, err := m.manager.GetTest(testID)
+		if err == nil && test != nil {
+			availableTests = append(availableTests, map[string]interface{}{
+				"id":   test.ID,
+				"name": test.Name,
+				"url":  "/tests/get/?test_id=" + testID,
+			})
+		}
 	}
 	
 	m.send(w, map[string]interface{}{
 		"test_data_created": true,
 		"message": "Тестовые данные созданы",
+		"available_tests": availableTests,
+		"example_requests": map[string]string{
+			"get_test": "GET /tests/get/?test_id=1",
+			"submit_test": "POST /tests/submit/ with JSON body",
+		},
 	})
 }
