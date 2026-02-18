@@ -1,0 +1,68 @@
+version: "2"
+run:
+  issues-exit-code: 1
+  tests: true
+linters:
+  default: all
+  disable:
+    - contextcheck      # зачем-то предлагает прокинуть контексты.
+    - depguard          # так и не понял предназначения.
+    - exhaustive        # бдсм.
+    - exhaustruct       # чушь.
+    - forcetypeassert   # дрочь.
+    - funcorder         # unexported method "clean" .. after .. "Upgrade".
+    - gochecknoglobals  # бред.
+    - godox             # изнасилует тудушками.
+    - inamedparam       # бессмыслица.
+    - lll               # экономия на спичках.
+    - noinlineerr       # мне нравится.
+    - nolintlint        # не нравится в комментах на 1 строку.
+    - musttag           # нет нужды.
+    - nlreturn          # notify(); continue
+    - paralleltest      # извращенство.
+    - tagliatelle       # json(camel): got 'custom_css' want 'customCss'
+    - testpackage       # package entities_test
+    - varnamelen        # var e error
+    - wrapcheck         # слишком много ошибок.
+    - wsl               # с такими холиварами боролись авторы Гоу.
+    - wsl_v5            # ... а эти клоуны пять версий набросали.
+  settings:
+    cyclop:
+      max-complexity: 12
+    funlen:
+      lines: 100
+    gosec:
+      excludes:
+        - G404 # Да, math/rand/v2 не криптостойкий.
+    mnd:
+      ignored-numbers:
+        - "0o600"
+        - "0o755"
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  default: all
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/LarsFox/emailer)
+        - localmodule
+        - blank
+        - dot
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
