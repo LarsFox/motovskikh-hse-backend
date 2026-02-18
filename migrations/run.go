@@ -14,12 +14,11 @@ import (
 )
 
 func main() {
-	// Загружаем .env из корня проекта (на уровень выше migrations/)
 	if err := godotenv.Load("../.env"); err != nil {
 		log.Fatal("Error loading .env file:", err)
 	}
 
-	// Подключение к БД
+	//Подключение к БД
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true",
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
@@ -30,15 +29,15 @@ func main() {
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Failed to connect to DB:", err)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatal("Cannot ping database:", err)
+		log.Fatal("Cannot ping DB:", err)
 	}
 
-	fmt.Println("✅ Connected to database")
+	fmt.Println("Connected to DB")
 
 	// Создаём таблицу для отслеживания миграций
 	_, err = db.Exec(`
@@ -94,13 +93,13 @@ func main() {
 			log.Fatalf("Failed to record migration %d: %v", version, err)
 		}
 
-		fmt.Printf("✅ Migration %d applied\n", version)
+		fmt.Printf("Migration %d applied\n", version)
 		applied++
 	}
 
 	if applied == 0 {
 		fmt.Println("No new migrations to apply")
 	} else {
-		fmt.Printf("\n🎉 Successfully applied %d migration(s)!\n", applied)
+		fmt.Printf("\nSuccessfully applied %d migration(s)!\n", applied)
 	}
 }
