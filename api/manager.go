@@ -77,7 +77,6 @@ func (m *Manager) addRoutes() {
 		routeGet("/tests/get/", m.hndlrGetTest),           // Получить тест.
 		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON), // Отправить ответы.
 		routePost("/stats/analysis/", m.hndlrGetAnalysis), // Базовый анализ.
-		routePost("/stats/advanced-analysis/", m.hndlrGetAdvancedAnalysis, m.wrapContentTypeJSON), // Подробный анализ.
 		// Для разработки.
 		routePost("/dev/create-test-data/", m.hndlrCreateTestData), // Создать тестовые данные.
 	})

@@ -158,50 +158,6 @@
         }
       }
     },
-    "/stats/advanced-analysis/": {
-      "post": {
-        "summary": "Получить детальный анализ попытки",
-        "description": "Возвращает детальный анализ по типам вопросов, регионам и сравнение с другими",
-        "consumes": ["application/json"],
-        "produces": ["application/json"],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "attempt_id": {"type": "string", "description": "ID попытки"}
-              },
-              "required": ["attempt_id"]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Детальный анализ",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {"type": "boolean"},
-                "result": {"type": "object"}
-              }
-            }
-          },
-          "404": {
-            "description": "Попытка не найдена",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {"type": "boolean", "example": false},
-                "error": {"type": "string"}
-              }
-            }
-          }
-        }
-      }
-    },
     "/dev/create-test-data/": {
       "post": {
         "summary": "Создать тестовые данные",

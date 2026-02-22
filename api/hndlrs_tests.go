@@ -12,8 +12,6 @@ type SubmitTestRequest struct {
 	TimeSpent   int     `json:"time_spent"`
 }
 
-// МЕТОДЫ-ХЭНДЛЕРЫ.
-
 // hndlrGetTest возвращает информацию о тесте для прохождения.
 func (m *Manager) hndlrGetTest(w http.ResponseWriter, r *http.Request) {
 	testName := r.URL.Query().Get("name")
@@ -27,7 +25,6 @@ func (m *Manager) hndlrGetTest(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	response := m.getMockedTestResponse(testName, language)
-	
 	m.send(w, response)
 }
 
@@ -113,7 +110,6 @@ func (m *Manager) getMockedTestResponse(testName, language string) map[string]in
 	}
 }
 
-
 // hndlrSubmitTest - хэндлер отправки теста.
 func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 	var req SubmitTestRequest
@@ -125,11 +121,6 @@ func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 	// Валидация.
 	if req.TestName == "" || req.TimeSpent <= 0 || req.Percentage < 0 || req.Percentage > 100 {
 		m.sendError(w, http.StatusBadRequest, "Missing or invalid required fields: test_name, time_spent > 0, percentage 0-100")
-		return
-	}
-	
-	if req.TimeSpent < 30 {
-		m.sendError(w, http.StatusBadRequest, "Time spent is too short (minimum 30 seconds)")
 		return
 	}
 	
@@ -147,5 +138,6 @@ func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result["attempt_id"] = attemptID
+	
 	m.send(w, result)
 }

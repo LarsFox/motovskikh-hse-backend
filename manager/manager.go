@@ -5,22 +5,17 @@ import (
 	"time"
 	"github.com/google/uuid"
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
+	"math"
+	"strings"
 )
 
 type db interface {
 	GetTest(testID string) (*entities.Test, error)
-	SaveAttempt(attempt *entities.Attempt) error
+	// Работа с бакетами.
+	AddAttemptToBucket(testID, userHash string, percentage float64, timeSpent int, isValid bool) error
 	GetTestStats(testID string) (*entities.TestStats, error)
-	GetUserPercentile(testID string, percentage float64, timeSpent int) (float64, error)
-	GetRecentAttempts(testID, userHash string, period time.Duration) (int, error)
-	
-	GetQuestions(testID string) ([]entities.Question, error)
-	GetQuestion(questionID string) (*entities.Question, error)
-	CheckAnswer(questionID, userAnswer string) (bool, int, error)
-	SaveUserAnswers(answers []*entities.UserAnswer) error
-	GetUserAnswers(attemptID string) ([]entities.UserAnswer, error)
-	GetDetailedAnalysis(attemptID string) (*entities.DetailedAnalysis, error)
-  GetTimePercentile(testID string, timeSpent int) (float64, error)
+	GetPercentileFromBucket(testID string, percentage float64, timeSpent int) (float64, error)
+	GetTimePercentile(testID string, timeSpent int) (float64, error)
 	CreateTestData() error
 }
 
@@ -39,241 +34,281 @@ func (m *Manager) GetTest(testID string) (*entities.Test, error) {
 
 // GetTestAnalysis возвращает анализ.
 func (m *Manager) GetTestAnalysis(testID string, userPercentage float64, userTimeSpent int) (*entities.TestStats, float64, error) {
+	// Получаем статистику из бакета.
 	stats, err := m.db.GetTestStats(testID)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get test stats: %w", err)
+		stats = &entities.TestStats{
+			ID:            uuid.New().String(),
+			TestID:        testID,
+			Period:        "total",
+			TotalAttempts: 0,
+			ValidAttempts: 0,
+			AvgPercentage: 0,
+			AvgTimeSpent:  0,
+			UpdatedAt:     time.Now(),
+		}
 	}
-
-	percentile, err := m.db.GetUserPercentile(testID, userPercentage, userTimeSpent)
+	
+	// Получаем перцентиль из бакета.
+	percentile, err := m.db.GetPercentileFromBucket(testID, userPercentage, userTimeSpent)
 	if err != nil {
-		return stats, 0, fmt.Errorf("failed to get user percentile: %w", err)
+		// Возвращаем примерный перцентиль на основе статистики.
+		if stats.AvgPercentage > 0 {
+			if userPercentage > stats.AvgPercentage {
+				percentile = 75.0
+			} else {
+				percentile = 25.0
+			}
+		} else {
+			percentile = 50.0
+		}
 	}
 	
 	return stats, percentile, nil
 }
 
-// CreateTestData создает тестовые данные.
-func (m *Manager) CreateTestData() error {
-	return m.db.CreateTestData()
-}
-
-// Возвращает недавние попытки.
-func (m *Manager) GetRecentAttempts(testID, userHash string, period time.Duration) (int, error) {
-	return m.db.GetRecentAttempts(testID, userHash, period)
-}
-
 // ValidateAttempt проверяет валидность попытки.
 func (m *Manager) ValidateAttempt(testID, userHash string, percentage float64, timeSpent int) (bool, string) {
-	// Проверка минимального времени (60 секунд).
+	// Проверка минимального времени (60 секунд)
 	if timeSpent < 60 {
 		return false, "Time spent is too short (minimum 60 seconds)"
 	}
 	
-	// Проверка минимального процента (5%).
+	// Проверка минимального процента (5%)
 	if percentage < 5 {
 		return false, "Score is too low (minimum 5%)"
 	}
 	
-	// Проверка на спам (не более 3 попыток в час).
-	recentAttempts, err := m.GetRecentAttempts(testID, userHash, time.Hour)
-	if err == nil && recentAttempts >= 3 {
-		return false, "Too many attempts recently (maximum 3 per hour)"
-	}
-
 	return true, ""
 }
 
-// Отправка теста.
-func (m *Manager) SubmitTestWithValidation(testID, userHash string, answers map[string]interface{}, timeSpent int) (string, map[string]interface{}, error) {
-	// Получаем вопросы теста.
-	questions, err := m.db.GetQuestions(testID)
-	if err != nil {
-		return "", nil, err
-	}
-	
-	// Проверяем ответы.
-	totalScore := 0
-	maxScore := 0
-	var userAnswers []*entities.UserAnswer
-	attemptID := uuid.New().String()
-	
-	for _, question := range questions {
-		maxScore += question.Points
-		
-		if userAnswer, ok := answers[question.ID]; ok {
-			answerStr := fmt.Sprintf("%v", userAnswer)
-			isCorrect, points, _ := m.db.CheckAnswer(question.ID, answerStr)
-			
-			if isCorrect {
-				totalScore += points
-			}
-			
-			userAnswers = append(userAnswers, &entities.UserAnswer{
-				ID:          uuid.New().String(),
-				AttemptID:   attemptID,
-				QuestionID:  question.ID,
-				UserAnswer:  answerStr,
-				IsCorrect:   isCorrect,
-				PointsEarned: points,
-				CreatedAt:   time.Now(),
-			})
-		}
-	}
-	
-	// Рассчитываем процент.
-	percentage := 0.0
-	if maxScore > 0 {
-		percentage = float64(totalScore) / float64(maxScore) * 100
-	}
-	
-	// Проверяем, можно ли сохранять эту попытку.
-	isValid, validationMessage := m.ValidateAttempt(testID, userHash, percentage, timeSpent)
-	
-	// Если попытка невалидна.
-	if !isValid {
-		return "", nil, fmt.Errorf("attempt validation failed: %s", validationMessage)
-	}
-	
-	// Сохраняем попытку.
-	attempt := &entities.Attempt{
-		ID:         attemptID,
-		TestID:     testID,
-		UserHash:   userHash,
-		Score:      totalScore,
-		MaxScore:   maxScore,
-		Percentage: percentage,
-		TimeSpent:  timeSpent,
-		Answers:    "{}",
-		IsValid:    true,
-		CreatedAt:  time.Now(),
-	}
-	
-	err = m.db.SaveAttempt(attempt)
-	if err != nil {
-		return "", nil, err
-	}
-	
-	// Сохраняем детальные ответы.
-	if len(userAnswers) > 0 {
-		m.db.SaveUserAnswers(userAnswers)
-	}
-	
-	// Готовим результат.
-	result := map[string]interface{}{
-		"attempt_id":         attemptID,
-		"score":              totalScore,
-		"max_score":          maxScore,
-		"percentage":         percentage,
-		"questions_total":    len(questions),
-		"questions_answered": len(userAnswers),
-		"is_valid":           true,
-		"validation_message": "Попытка успешно проверена и сохранена",
-	}
-	// Добавляем быстрый анализ.
-	quickAnalysis := m.generateQuickAnalysis(attemptID, testID, percentage, timeSpent, userHash)
-	result["quick_analysis"] = quickAnalysis
-	
-	return attemptID, result, nil
-}
-
+// SubmitTestResult сохраняет результат теста и возвращает расширенный анализ.
 func (m *Manager) SubmitTestResult(testName, userHash string, percentage float64, timeSpent int) (string, map[string]interface{}, error) {
-	score := int(percentage)
-	maxScore := 100
-	
-	// Проверяем валидность попытки.
+	// Валидация.
 	isValid, validationMessage := m.ValidateAttempt(testName, userHash, percentage, timeSpent)
-	if !isValid {
-		return "", nil, fmt.Errorf("attempt validation failed: %s", validationMessage)
-	}
 	
 	// Генерируем ID попытки.
 	attemptID := uuid.New().String()
 	
-	// Сохраняем попытку.
-	attempt := &entities.Attempt{
-		ID:         attemptID,
-		TestID:     testName,
-		UserHash:   userHash,
-		Score:      score,
-		MaxScore:   maxScore,
-		Percentage: percentage,
-		TimeSpent:  timeSpent,
-		Answers:    "{}",
-		IsValid:    true,
-		CreatedAt:  time.Now(),
+	// Сохраняем в бакет.
+	err := m.db.AddAttemptToBucket(testName, userHash, percentage, timeSpent, isValid)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to save attempt: %w", err)
 	}
 	
-	err := m.db.SaveAttempt(attempt)
-	if err != nil {
-		return "", nil, err
+	// Получаем статистику из бакета.
+	stats, _ := m.db.GetTestStats(testName)
+	
+	// Получаем перцентили.
+	percentileRank, _ := m.db.GetPercentileFromBucket(testName, percentage, timeSpent)
+	timePercentile, _ := m.db.GetTimePercentile(testName, timeSpent)
+	
+	// Определяем категорию и сообщение.
+	category := getCategoryFromPercentile(percentileRank)
+	timeCategory := getTimeCategory(timePercentile)
+	
+	// Формируем расширенный анализ.
+	analysis := map[string]interface{}{
+		// Основные показатели.
+		"percentage":      percentage,
+		"time_spent":      timeSpent,
+		"is_valid":        isValid,
+		
+		// Сравнение с другими.
+		"percentile_rank":    math.Round(percentileRank*10)/10,
+		"time_percentile":    math.Round(timePercentile*10)/10,
+		"better_than":        int(percentileRank),
+		"faster_than":        int(timePercentile),
+		
+		// Категории.
+		"category":           category,
+		"time_category":      timeCategory,
+		
+		// Средние значения.
+		"average_percentage": math.Round(stats.AvgPercentage*10)/10,
+		"average_time":       math.Round(stats.AvgTimeSpent*10)/10,
+		
+		// Сравнение со средним.
+		"vs_average": map[string]interface{}{
+			"percentage_diff": math.Round((percentage - stats.AvgPercentage)*10)/10,
+			"time_diff":       math.Round((float64(timeSpent) - stats.AvgTimeSpent)*10)/10,
+			"percentage_status": getComparisonStatus(percentage, stats.AvgPercentage),
+			"time_status":       getTimeComparisonStatus(float64(timeSpent), stats.AvgTimeSpent),
+		},
+		
+		// Квадрант эффективности.
+		"quadrant": getPerformanceQuadrant(percentage, timePercentile),
+		
+		// Сообщение пользователю.
+		"message": generateResultMessage(percentage, timeSpent, percentileRank, timePercentile, stats),
 	}
-
-	// Готовим результат.
+	
+	// Формируем итоговый результат.
 	result := map[string]interface{}{
-			"score":              score,
-			"max_score":          maxScore,
-			"percentage":         percentage,
-			"time_spent":         timeSpent,
-			"is_valid":           true,
-			"validation_message": "Попытка успешно сохранена",
-			"quick_analysis": m.generateQuickAnalysis(attemptID, testName, percentage, timeSpent, userHash),
+		"attempt_id":         attemptID,
+		"submitted":          true,
+		"validation_message": validationMessage,
+		"analysis":           analysis,
 	}
-
+	
 	return attemptID, result, nil
 }
 
-// GetDetailedAnalysis возвращает детальный анализ.
-func (m *Manager) GetDetailedAnalysis(attemptID string) (*entities.DetailedAnalysis, error) {
-    return m.db.GetDetailedAnalysis(attemptID)
+// Вспомогательные функции.
+func getTimeCategory(timePercentile float64) string {
+	switch {
+	case timePercentile >= 90:
+		return "very_fast"
+	case timePercentile >= 70:
+		return "fast"
+	case timePercentile >= 40:
+		return "average_speed"
+	case timePercentile >= 20:
+		return "slow"
+	default:
+		return "very_slow"
+	}
 }
 
-// GetQuestions возвращает вопросы теста.
-func (m *Manager) GetQuestions(testID string) ([]entities.Question, error) {
-	return m.db.GetQuestions(testID)
+func getComparisonStatus(userValue, avgValue float64) string {
+	diff := userValue - avgValue
+	switch {
+	case diff > 15:
+		return "significantly_higher"
+	case diff > 5:
+		return "higher"
+	case diff < -15:
+		return "significantly_lower"
+	case diff < -5:
+		return "lower"
+	default:
+		return "similar"
+	}
 }
 
-// generateQuickAnalysis создает быстрый анализ для ответа на submit.
-func (m *Manager) generateQuickAnalysis(attemptID, testID string, percentage float64, timeSpent int, userHash string) map[string]interface{} {
-    stats, percentile, err := m.GetTestAnalysis(testID, percentage, timeSpent)
-    if err != nil {
-        // Возвращаем базовый анализ при ошибке.
-        return map[string]interface{}{
-            "percentile":  0,
-            "category":    "unknown",
-            "better_than": 0,
-            "message":     "Анализ временно недоступен",
-        }
-    }
-    
-    category := "average"
-    if percentile >= 90 {
-        category = "excellent"
-    } else if percentile >= 70 {
-        category = "good"
-    } else if percentile < 30 {
-        category = "needs_improvement"
-    }
-    
-    return map[string]interface{}{
-        "percentile":          percentile,
-        "category":            category,
-        "better_than":         int(percentile),
-        "average_percentage":  stats.AvgPercentage,
-        "average_time":        stats.AvgTimeSpent,
-        "message":             m.getCategoryMessage(category, percentile),
-    }
+func getTimeComparisonStatus(userTime, avgTime float64) string {
+	diff := userTime - avgTime
+	switch {
+	case diff < -60:
+		return "much_faster"
+	case diff < -20:
+		return "faster"
+	case diff > 60:
+		return "much_slower"
+	case diff > 20:
+		return "slower"
+	default:
+		return "similar"
+	}
+}
+
+func getPerformanceQuadrant(percentage float64, timePercentile float64) map[string]interface{} {
+	quadrant := ""
+	description := ""
+	
+	if percentage >= 80 && timePercentile >= 80 {
+		quadrant = "expert"
+		description = "Эксперт: быстро и правильно!"
+	} else if percentage >= 80 && timePercentile < 80 {
+		quadrant = "precise_but_slow"
+		description = "Точно, но можно быстрее"
+	} else if percentage < 80 && timePercentile >= 80 {
+		quadrant = "fast_but_inaccurate"
+		description = "Быстро, но есть ошибки"
+	} else if percentage >= 50 && timePercentile >= 50 {
+		quadrant = "solid"
+		description = "Хороший результат, продолжай в том же духе"
+	} else if percentage < 50 && timePercentile < 50 {
+		quadrant = "needs_practice"
+		description = "Нужно больше практики"
+	} else {
+		quadrant = "mixed"
+		description = "Противоречивые результаты"
+	}
+	
+	return map[string]interface{}{
+		"name":        quadrant,
+		"description": description,
+		"x":           percentage,
+		"y":           timePercentile,
+	}
+}
+
+func generateResultMessage(percentage float64, timeSpent int, percentileRank, timePercentile float64, stats *entities.TestStats) string {
+	var parts []string
+	switch {
+	case percentileRank >= 90:
+		parts = append(parts, "Превосходный результат!")
+	case percentileRank >= 75:
+		parts = append(parts, "Отличный результат!")
+	case percentileRank >= 50:
+		parts = append(parts, "Хороший результат.")
+	case percentileRank >= 25:
+		parts = append(parts, "Средний результат.")
+	default:
+		parts = append(parts, "Есть над чем поработать.")
+	}
+	
+	// Сообщение о времени.
+	switch {
+	case timePercentile >= 90:
+		parts = append(parts, "Ты справился очень быстро!")
+	case timePercentile >= 75:
+		parts = append(parts, "Хорошая скорость.")
+	case timePercentile <= 25:
+		parts = append(parts, "Медленно.")
+	}
+	
+	// Сравнение со средним.
+	if stats.ValidAttempts > 0 {
+		if percentage > stats.AvgPercentage+10 {
+			parts = append(parts, fmt.Sprintf("На %.1f%% выше среднего.", percentage-stats.AvgPercentage))
+		} else if percentage < stats.AvgPercentage-10 {
+			parts = append(parts, fmt.Sprintf("На %.1f%% ниже среднего.", stats.AvgPercentage-percentage))
+		}
+		
+		timeDiff := float64(timeSpent) - stats.AvgTimeSpent
+		if timeDiff < -30 {
+			parts = append(parts, "Быстрее среднего на полминуты.")
+		} else if timeDiff > 30 {
+			parts = append(parts, "Медленнее среднего.")
+		}
+	}
+	
+	return strings.Join(parts, " ")
 }
 
 func (m *Manager) getCategoryMessage(category string, percentile float64) string {
 	messages := map[string]string{
 		"excellent":        fmt.Sprintf("Превосходно! Вы лучше, чем %.0f%% участников!", percentile),
 		"good":             fmt.Sprintf("Хороший результат! Вы лучше %.0f%% участников.", percentile),
-		"average":          fmt.Sprintf("Средний результат. Вы в середине распределения."),
-		"needs_improvement": fmt.Sprintf("Есть над чем поработать. Вы лучше %.0f%% участников.", percentile),
+		"average":          "Средний результат. Вы в середине распределения.",
+		"below_average":    fmt.Sprintf("Ниже среднего. Вы лучше %.0f%% участников.", percentile),
+		"needs_improvement": "Есть над чем поработать.",
 	}
 	
 	if msg, ok := messages[category]; ok {
 		return msg
 	}
 	return "Спасибо за прохождение теста!"
+}
+
+func getCategoryFromPercentile(percentile float64) string {
+	switch {
+	case percentile >= 90:
+		return "excellent"
+	case percentile >= 70:
+		return "good"
+	case percentile >= 40:
+		return "average"
+	case percentile >= 20:
+		return "below_average"
+	default:
+		return "needs_improvement"
+	}
+}
+
+// CreateTestData создает тестовые данные.
+func (m *Manager) CreateTestData() error {
+	return m.db.CreateTestData()
 }
