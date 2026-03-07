@@ -21,7 +21,6 @@ const (
 	maxBodySize = 1468006
 )
 
-// Внутренние ошибки.
 var (
 	errUnknownError = errors.New("unknown error")
 )

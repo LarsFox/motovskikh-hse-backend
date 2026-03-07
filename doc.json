@@ -11,43 +11,6 @@
   "consumes": ["application/json"],
   "produces": ["application/json"],
   "paths": {
-    "/tests/get/": {
-      "get": {
-        "summary": "Получить тест для прохождения",
-        "produces": ["application/json"],
-        "parameters": [
-          {
-            "name": "test_name",
-            "in": "query",
-            "required": true,
-            "type": "string",
-            "description": "Name теста"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Информация о тесте",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {"type": "boolean"},
-                "result": {"type": "object"}
-              }
-            }
-          },
-          "404": {
-            "description": "Тест не найден",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {"type": "boolean", "example": false},
-                "error": {"type": "string"}
-              }
-            }
-          }
-        }
-      }
-    },
     "/tests/submit/": {
       "post": {
         "summary": "Отправить ответы на тест",

@@ -74,7 +74,6 @@ func (m *Manager) Listen(addr string) error {
 func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
 		routeGet("/doc.json", m.hndlrSwaggerJSON),
-		routeGet("/tests/get/", m.hndlrGetTest),           // Получить тест.
 		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON), // Отправить ответы.
 		routePost("/stats/analysis/", m.hndlrGetAnalysis), // Базовый анализ.
 		// Для разработки.

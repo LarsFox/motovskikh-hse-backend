@@ -2,6 +2,8 @@ package entities
 
 import "time"
 
+// Структуры, связанные с анализом данных.
+
 // DistributionCategory - категория распределения.
 type DistributionCategory struct {
 	Name        string  `json:"name"`
