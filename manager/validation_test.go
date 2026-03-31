@@ -5,51 +5,55 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidateAttempt(t *testing.T) {
+func TestValidateAttempt_WithTest(t *testing.T) {
 	m := &Manager{}
-	
+
 	tests := []struct {
-		name       string
-		percentage float64
-		timeSpent  int
-		wantValid  bool
-		wantMsg    string
+		name           string
+		testID         string
+		percentage     float64
+		timeSpent      int
+		questionCount  int
+		expectValid    bool
 	}{
 		{
-			name:       "valid attempt",
-			percentage: 70,
-			timeSpent:  120,
-			wantValid:  true,
-			wantMsg:    "",
+			name:          "valid attempt with 30 regions",
+			testID:        "europe",
+			percentage:    70,
+			timeSpent:     180,
+			questionCount: 30,
+			expectValid:   true,
 		},
 		{
-			name:       "time too short",
-			percentage: 70,
-			timeSpent:  30,
-			wantValid:  false,
-			wantMsg:    "Time spent is too short (minimum 60 seconds)",
+			name:          "too fast for 30 regions",
+			testID:        "europe",
+			percentage:    70,
+			timeSpent:     30,
+			questionCount: 30,
+			expectValid:   false,
 		},
 		{
-			name:       "score too low",
-			percentage: 3,
-			timeSpent:  120,
-			wantValid:  false,
-			wantMsg:    "Score is too low (minimum 5%)",
+			name:          "too low percentage",
+			testID:        "europe",
+			percentage:    3,
+			timeSpent:     180,
+			questionCount: 30,
+			expectValid:   false,
 		},
 		{
-			name:       "both invalid",
-			percentage: 3,
-			timeSpent:  30,
-			wantValid:  false,
-			wantMsg:    "Time spent is too short (minimum 60 seconds)",
+			name:          "small test higher threshold",
+			testID:        "small",
+			percentage:    8,
+			timeSpent:     60,
+			questionCount: 8,
+			expectValid:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid, msg := m.ValidateAttempt("test", "user", tt.percentage, tt.timeSpent)
-			assert.Equal(t, tt.wantValid, valid)
-			assert.Equal(t, tt.wantMsg, msg)
+			valid := m.ValidateAttempt(tt.testID, tt.percentage, tt.timeSpent, tt.questionCount)
+			assert.Equal(t, tt.expectValid, valid)
 		})
 	}
 }

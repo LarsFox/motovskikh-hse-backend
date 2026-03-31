@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"testing"
+
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -9,89 +10,222 @@ import (
 	"gorm.io/gorm"
 )
 
-// setupTestDB создает тестовую БД в памяти.
+const testEuropeID = "europe"
+
 func setupTestDB(t *testing.T) *Client {
+	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
-	
+
 	err = db.AutoMigrate(&entities.TestBucket{})
 	require.NoError(t, err)
-	
+
 	return &Client{db: db}
 }
 
-// cleanupDB очищает таблицу между тестами.
-func cleanupDB(t *testing.T, client *Client) {
-	err := client.db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&entities.TestBucket{}).Error
+func cleanupTestBucket(t *testing.T, client *Client, testID string) {
+	t.Helper()
+	err := client.db.Exec("DELETE FROM test_buckets WHERE test_id = ?", testID).Error
 	require.NoError(t, err)
 }
 
-func TestAddAttemptToBucket_CreateNewBucket(t *testing.T) {
+func TestGetOrCreateBucket_CreateNewBucket(t *testing.T) {
 	client := setupTestDB(t)
-	cleanupDB(t, client)
+	testID := testEuropeID
+	defer cleanupTestBucket(t, client, testID)
+
+	bucket, err := client.GetOrCreateBucket(testID, 15)
+	require.NoError(t, err)
 	
-	// Добавляем первую попытку.
-	err := client.AddAttemptToBucket("europe", "user1", 75.0, 180, true)
-	assert.NoError(t, err)
-	
-	// Проверяем что бакет создался.
-	bucket, err := client.GetBucket("europe")
-	assert.NoError(t, err)
 	assert.NotNil(t, bucket)
-	assert.Equal(t, uint64(1), bucket.TotalAttempts)
-	assert.Equal(t, uint64(1), bucket.ValidAttempts)
-	assert.Equal(t, 75.0, bucket.AvgPercentage)
-	assert.Equal(t, 180.0, bucket.AvgTimeSpent)
+	assert.Equal(t, testID, bucket.TestID)
+	assert.Equal(t, uint64(0), bucket.Attempts)
+	assert.NotNil(t, bucket.PercentDistrib)
+	assert.NotNil(t, bucket.TimeDistrib)
 }
 
-func TestAddAttemptToBucket_UpdateExisting(t *testing.T) {
+func TestGetOrCreateBucket_GetExisting(t *testing.T) {
 	client := setupTestDB(t)
-	cleanupDB(t, client)
-	
-	// Добавляем первую попытку.
-	client.AddAttemptToBucket("europe", "user1", 70.0, 180, true)
-	
-	// Добавляем вторую попытку.
-	err := client.AddAttemptToBucket("europe", "user2", 80.0, 150, true)
-	assert.NoError(t, err)
-	
-	// Проверяем обновленные значения.
-	bucket, _ := client.GetBucket("europe")
-	assert.Equal(t, uint64(2), bucket.TotalAttempts)
-	assert.Equal(t, uint64(2), bucket.ValidAttempts)
-	assert.InDelta(t, 75.0, bucket.AvgPercentage, 0.1)
-	assert.InDelta(t, 165.0, bucket.AvgTimeSpent, 0.1)
-}
+	testID := testEuropeID
+	defer cleanupTestBucket(t, client, testID)
 
-func TestAddAttemptToBucket_InvalidAttempt(t *testing.T) {
-	client := setupTestDB(t)
-	cleanupDB(t, client)
+	// Создаем первый бакет
+	bucket1, err := client.GetOrCreateBucket(testID, 15)
+	require.NoError(t, err)
 	
-	// Добавляем невалидную попытку.
-	err := client.AddAttemptToBucket("europe", "user1", 3.0, 30, false)
-	assert.NoError(t, err)
+	// Обновляем данные
+	bucket1.Attempts = 5
+	err = client.SaveBucket(bucket1)
+	require.NoError(t, err)
+
+	// Получаем существующий бакет
+	bucket2, err := client.GetOrCreateBucket(testID, 15)
+	require.NoError(t, err)
 	
-	bucket, _ := client.GetBucket("europe")
-	assert.Equal(t, uint64(1), bucket.TotalAttempts)
-	assert.Equal(t, uint64(0), bucket.ValidAttempts)
-	assert.Equal(t, uint64(1), bucket.InvalidAttempts)
+	assert.Equal(t, uint64(5), bucket2.Attempts)
+	assert.Equal(t, testID, bucket2.TestID)
 }
 
 func TestGetBucket_NotFound(t *testing.T) {
 	client := setupTestDB(t)
-	cleanupDB(t, client)
-	
-	bucket, err := client.GetBucket("nonexistent")
-	assert.NoError(t, err)
+	testID := "nonexistent"
+	defer cleanupTestBucket(t, client, testID)
+
+	bucket, err := client.GetBucket(testID)
+	require.Error(t, err)
+	assert.Equal(t, entities.ErrNotFound, err)
 	assert.Nil(t, bucket)
 }
 
-func TestGetTestStats_EmptyBucket(t *testing.T) {
+func TestSaveBucket_Update(t *testing.T) {
 	client := setupTestDB(t)
-	cleanupDB(t, client)
+	testID := testEuropeID
+	defer cleanupTestBucket(t, client, testID)
+
+	// Создаем бакет
+	bucket, err := client.GetOrCreateBucket(testID, 15)
+	require.NoError(t, err)
+
+	// Обновляем значения
+	bucket.Attempts = 10
+	bucket.AvgPercentage = 75.5
+	bucket.AvgTimeSpent = 180.0
+
+	// Сохраняем
+	err = client.SaveBucket(bucket)
+	require.NoError(t, err)
+
+	// Получаем и проверяем
+	saved, err := client.GetBucket(testID)
+	require.NoError(t, err)
 	
-	stats, err := client.GetTestStats("europe")
-	assert.NoError(t, err)
-	assert.Equal(t, 0, stats.ValidAttempts)
-	assert.Equal(t, 0.0, stats.AvgPercentage)
+	assert.Equal(t, uint64(10), saved.Attempts)
+	assert.InDelta(t, 75.5, saved.AvgPercentage, 0.001)
+	assert.InDelta(t, 180.0, saved.AvgTimeSpent, 0.001)
+}
+
+func TestCreateBucket(t *testing.T) {
+	client := setupTestDB(t)
+	testID := "asia"
+	defer cleanupTestBucket(t, client, testID)
+
+	bucket := &entities.TestBucket{
+		TestID: testID,
+	}
+	bucket.InitializeBuckets(20)
+
+	err := client.CreateBucket(bucket)
+	require.NoError(t, err)
+
+	// Проверяем, что создался
+	saved, err := client.GetBucket(testID)
+	require.NoError(t, err)
+	
+	assert.Equal(t, testID, saved.TestID)
+	assert.Equal(t, uint64(0), saved.Attempts)
+}
+
+func TestBucketWithDistributions(t *testing.T) {
+	client := setupTestDB(t)
+	testID := "test-dist"
+	defer cleanupTestBucket(t, client, testID)
+
+	bucket, err := client.GetOrCreateBucket(testID, 10)
+	require.NoError(t, err)
+	
+	// Проверяем процентные бакеты
+	assert.NotNil(t, bucket.PercentDistrib)
+	assert.Len(t, bucket.PercentDistrib.Buckets, 20)
+	
+	// Проверяем временные бакеты
+	assert.NotNil(t, bucket.TimeDistrib)
+	assert.NotEmpty(t, bucket.TimeDistrib.Buckets)
+	
+	// Проверяем первый процентный бакет
+	firstPercentBucket := bucket.PercentDistrib.Buckets[0]
+	assert.InDelta(t, 0.0, firstPercentBucket.Min, 0.001)
+	assert.InDelta(t, 5.0, firstPercentBucket.Max, 0.001)
+	assert.Equal(t, "0-5%", firstPercentBucket.Label)
+}
+
+func TestSaveAndRetrieveBucket(t *testing.T) {
+	client := setupTestDB(t)
+	testID := "test-save"
+	defer cleanupTestBucket(t, client, testID)
+
+	// Создаем бакет
+	bucket := &entities.TestBucket{
+		TestID:        testID,
+		Attempts:      100,
+		AvgPercentage: 68.5,
+		AvgTimeSpent:  150.5,
+		MinPercentage: 20.0,
+		MaxPercentage: 95.0,
+		MinTimeSpent:  60,
+		MaxTimeSpent:  300,
+	}
+	bucket.InitializeBuckets(15)
+
+	// Сохраняем
+	err := client.CreateBucket(bucket)
+	require.NoError(t, err)
+
+	// Получаем и проверяем
+	retrieved, err := client.GetBucket(testID)
+	require.NoError(t, err)
+	
+	assert.Equal(t, bucket.TestID, retrieved.TestID)
+	assert.Equal(t, bucket.Attempts, retrieved.Attempts)
+	assert.InDelta(t, bucket.AvgPercentage, retrieved.AvgPercentage, 0.001)
+	assert.InDelta(t, bucket.AvgTimeSpent, retrieved.AvgTimeSpent, 0.001)
+	assert.InDelta(t, bucket.MinPercentage, retrieved.MinPercentage, 0.001)
+	assert.InDelta(t, bucket.MaxPercentage, retrieved.MaxPercentage, 0.001)
+	assert.Equal(t, bucket.MinTimeSpent, retrieved.MinTimeSpent)
+	assert.Equal(t, bucket.MaxTimeSpent, retrieved.MaxTimeSpent)
+}
+
+func TestMultipleDifferentBuckets(t *testing.T) {
+	client := setupTestDB(t)
+	
+	testIDs := []string{"test1", "test2", "test3"}
+	
+	// Создаем бакеты
+	for _, id := range testIDs {
+		bucket, err := client.GetOrCreateBucket(id, 20)
+		require.NoError(t, err)
+		assert.NotNil(t, bucket)
+	}
+	
+	// Проверяем, что все создались
+	for _, id := range testIDs {
+		bucket, err := client.GetBucket(id)
+		require.NoError(t, err)
+		assert.NotNil(t, bucket)
+		assert.Equal(t, id, bucket.TestID)
+		
+		// Очищаем
+		cleanupTestBucket(t, client, id)
+	}
+}
+
+func TestBucketAttemptsIncrement(t *testing.T) {
+	client := setupTestDB(t)
+	testID := "test-inc"
+	defer cleanupTestBucket(t, client, testID)
+
+	// Создаем бакет
+	bucket, err := client.GetOrCreateBucket(testID, 10)
+	require.NoError(t, err)
+	
+	initialAttempts := bucket.Attempts
+	
+	// Увеличиваем попытки
+	bucket.Attempts++
+	err = client.SaveBucket(bucket)
+	require.NoError(t, err)
+	
+	// Получаем и проверяем
+	updated, err := client.GetBucket(testID)
+	require.NoError(t, err)
+	assert.Equal(t, initialAttempts+1, updated.Attempts)
 }

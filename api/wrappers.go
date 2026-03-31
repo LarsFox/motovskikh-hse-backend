@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strings"
 )
 
 type wrapper func(http.Handler) http.Handler
@@ -10,7 +9,8 @@ type wrapper func(http.Handler) http.Handler
 func (m *Manager) wrapContentTypeJSON(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ct := r.Header.Get("Content-Type")
-		if !strings.Contains(strings.ToLower(ct), "application/json") {
+		// Swagger без charset запросы делает.
+		if ct != "application/json" && ct != "application/json; charset=utf-8" {
 			m.sendErrorPage(w, http.StatusBadRequest)
 			return
 		}

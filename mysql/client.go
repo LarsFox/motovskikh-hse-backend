@@ -34,11 +34,9 @@ func NewClient(cfg *Config) (*Client, error) {
 		return nil, fmt.Errorf("dbs new client err: %w", err)
 	}
 
-	// Автомиграция для всех таблиц.
+	// Автомиграция для всех таблиц
 	err = db.AutoMigrate(
-		&entities.Test{},
 		&entities.TestBucket{},
-		&entities.TestStats{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("dbs migrate err: %w", err)

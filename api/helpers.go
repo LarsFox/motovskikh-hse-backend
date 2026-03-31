@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
-	"fmt"
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
@@ -21,6 +20,7 @@ const (
 	maxBodySize = 1468006
 )
 
+// Внутренние ошибки.
 var (
 	errUnknownError = errors.New("unknown error")
 )
@@ -78,14 +78,10 @@ func unmarshalParams(r *http.Request, prms runtime.Validatable) error {
 func (m *Manager) sendError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"ok":    false,
-		"error": message,
-	})
-}
-
-// sendErrorPage возвращает страницу ошибки.
-func (m *Manager) sendErrorPage(w http.ResponseWriter, code int) {
-	w.WriteHeader(code)
-	w.Write([]byte(fmt.Sprintf("nope, %d", code)))
+	if err := json.NewEncoder(w).Encode(map[string]any{
+    "ok":    false,
+    "error": message,
+	}); err != nil {
+    notify(err)
+	}
 }

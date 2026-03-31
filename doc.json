@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
     "title": "Motovskikh Tests API",
-    "description": "API для системы трекинга рекордов с детальным анализом",
+    "description": "API для системы трекинга рекордов",
     "version": "2.0.0"
   },
   "host": "localhost:8080",
@@ -13,8 +13,8 @@
   "paths": {
     "/tests/submit/": {
       "post": {
-        "summary": "Отправить ответы на тест",
-        "description": "Сохраняет попытку",
+        "summary": "Отправить результаты и получить анализ",
+        "description": "Отправляем результаты теста и получаем аналих",
         "consumes": ["application/json"],
         "produces": ["application/json"],
         "parameters": [
@@ -25,19 +25,13 @@
             "schema": {
               "type": "object",
               "properties": {
-                "test_name": {"type": "string"},
-                "percentage": {"type": "integer"},
-                "time_spent": { "type": "integer"}
-              },
-              "required": ["test_id", "answers", "time_spent"]
-            }
+              "test_name": {"type": "string"},
+              "percentage": {"type": "number", "format": "float"},
+              "time_spent": {"type": "integer"},
+              "question_count": {"type": "integer"}
           },
-          {
-            "name": "User-Hash",
-            "in": "header",
-            "required": false,
-            "type": "string",
-            "description": "Хэш пользователя (если нет - генерируется автоматически)"
+          "required": ["test_name", "percentage", "time_spent", "question_count"]
+            }
           }
         ],
         "responses": {
@@ -46,18 +40,14 @@
             "schema": {
               "type": "object",
               "properties": {
-                "ok": {"type": "boolean"},
+                "ok": {"type": "boolean", "example": true},
                 "result": {
                   "type": "object",
                   "properties": {
                     "attempt_id": {"type": "string"},
-                    "score": {"type": "integer"},
-                    "max_score": {"type": "integer"},
-                    "percentage": {"type": "number", "format": "float"},
-                    "time_spent": {"type": "integer"},
-                    "is_valid": {"type": "boolean"},
-                    "analysis": {"type": "object"},
-                    "answers_details": {"type": "object"}
+                    "submitted": {"type": "boolean"},
+                    "validation_message": {"type": "string"},
+                    "analysis": {"type": "object"}
                   }
                 }
               }
@@ -68,81 +58,7 @@
             "schema": {
               "type": "object",
               "properties": {
-                "ok": {"type": "boolean", "example": false},
-                "error": {"type": "string"}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/stats/analysis/": {
-      "post": {
-        "summary": "Получить анализ результатов теста",
-        "consumes": ["application/json"],
-        "produces": ["application/json"],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "test_id": {"type": "string"},
-                "percentage": {"type": "number", "format": "float"},
-                "time_spent": {"type": "integer"}
-              },
-              "required": ["test_id", "percentage", "time_spent"]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Анализ результатов",
-            "schema": {
-              "type": "object",
-              "properties": {
                 "ok": {"type": "boolean"},
-                "result": {"type": "object"}
-              }
-            }
-          },
-          "400": {
-            "description": "Неверные параметры",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {"type": "boolean", "example": false},
-                "error": {"type": "string"}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/dev/create-test-data/": {
-      "post": {
-        "summary": "Создать тестовые данные",
-        "description": "Создает набор тестовых попыток для отладки",
-        "produces": ["application/json"],
-        "responses": {
-          "200": {
-            "description": "Тестовые данные созданы",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {"type": "boolean"},
-                "result": {"type": "object"}
-              }
-            }
-          },
-          "500": {
-            "description": "Ошибка сервера",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "ok": {"type": "boolean", "example": false},
                 "error": {"type": "string"}
               }
             }

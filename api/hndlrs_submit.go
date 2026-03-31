@@ -1,45 +1,40 @@
 package api
 
 import (
-	"encoding/json"
-	"net/http"
-	"github.com/google/uuid"
+    "net/http"
+    
+    "github.com/LarsFox/motovskikh-hse-backend/generated/models"
 )
 
-type SubmitTestRequest struct {
-	TestName    string  `json:"test_name"`
-	Percentage  float64 `json:"percentage"`
-	TimeSpent   int     `json:"time_spent"`
-}
-
-// hndlrSubmitTest - хэндлер отправки теста.
 func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
-	var req SubmitTestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		m.sendError(w, http.StatusBadRequest, "Invalid JSON")
-		return
-	}
-	
-	// Валидация.
-	if req.TestName == "" || req.TimeSpent <= 0 || req.Percentage < 0 || req.Percentage > 100 {
-		m.sendError(w, http.StatusBadRequest, "Missing or invalid required fields: test_name, time_spent > 0, percentage 0-100")
-		return
-	}
-	
-	// Получаем или генерируем userHash.
-	userHash := r.Header.Get("X-User-Hash")
-	if userHash == "" {
-		userHash = "anonymous_" + uuid.New().String()[:8]
-	}
-	
-	// Передаем процент и время.
-	attemptID, result, err := m.manager.SubmitTestResult(req.TestName, userHash, req.Percentage, req.TimeSpent)
-	if err != nil {
-		m.sendError(w, http.StatusInternalServerError, "Failed to submit test: "+err.Error())
-		return
-	}
+    var req models.SubmitTestRequest
+    
+    if err := unmarshalParams(r, &req); err != nil {
+        m.sendError(w, http.StatusBadRequest, "Invalid request: "+err.Error())
+        return
+    }
+    
+    if req.TestName == nil || req.Percentage == nil || req.TimeSpent == nil || req.QuestionCount == nil {
+        m.sendError(w, http.StatusBadRequest, "Missing required fields")
+        return
+    }
+    
+    // Разыменование указателей.
+    testName := *req.TestName
+    percentage := float64(*req.Percentage)
+    timeSpent := int(*req.TimeSpent)
+    questionCount := int(*req.QuestionCount)
 
-	result["attempt_id"] = attemptID
-	
-	m.send(w, result)
+    result, err := m.manager.SubmitTestResult(
+        testName,
+        percentage,
+        timeSpent,
+        questionCount,
+    )
+    if err != nil {
+        m.sendError(w, http.StatusInternalServerError, "Failed to submit test: "+err.Error())
+        return
+    }
+    
+    m.send(w, result)
 }

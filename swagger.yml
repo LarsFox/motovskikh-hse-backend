@@ -12,6 +12,8 @@ produces:
   - file
   - text/html
 
+paths: {}
+
 definitions:
   GetTestRequest:
     type: object
@@ -504,3 +506,150 @@ definitions:
         $ref: '#/definitions/Settings'
       texts:
         type: object
+
+  SubmitTestRequest:
+    type: object
+    required:
+      - test_name
+      - percentage
+      - time_spent
+      - question_count
+    properties:
+      test_name:
+        type: string
+        description: "Название теста (например, europe)"
+        example: "europe"
+      percentage:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: "Процент правильных ответов"
+        example: 75.5
+      time_spent:
+        type: integer
+        minimum: 1
+        description: "Затраченное время в секундах"
+        example: 180
+      question_count:
+        type: integer
+        minimum: 1
+        description: "Кол-во вопросов"
+        example: 4
+
+  SubmitTestResponse:
+    type: object
+    properties:
+      attempt_id:
+        type: string
+        description: "Уникальный ID попытки"
+        example: "550e8400-e29b-41d4-a716-446655440000"
+      submitted:
+        type: boolean
+        example: true
+      validation_message:
+        type: string
+        description: "Сообщение о валидации (если попытка невалидна)"
+      analysis:
+        $ref: '#/definitions/AnalysisResponse'
+
+  AnalysisResponse:
+    type: object
+    properties:
+      percentage:
+        type: number
+        format: float
+      time_spent:
+        type: integer
+      is_valid:
+        type: boolean
+      percentile_rank:
+        type: number
+        format: float
+      time_percentile:
+        type: number
+        format: float
+      better_than:
+        type: integer
+        description: "Процент людей, которых вы обошли"
+      faster_than:
+        type: integer
+        description: "Процент людей, которых вы обогнали по времени"
+      category:
+        type: string
+        enum: [elite, excellent, good, average, below_average, needs_improvement]
+      time_category:
+        type: string
+        enum: [very_fast, fast, average_speed, slow, very_slow]
+      average_percentage:
+        type: number
+        format: float
+      average_time:
+        type: number
+        format: float
+      vs_average:
+        $ref: '#/definitions/ComparisonStats'
+      quadrant:
+        $ref: '#/definitions/PerformanceQuadrant'
+
+  ComparisonStats:
+    type: object
+    properties:
+      percentage_diff:
+        type: number
+        format: float
+      time_diff:
+        type: number
+        format: float
+      percentage_status:
+        type: string
+        enum: [significantly_higher, higher, similar, lower, significantly_lower]
+      time_status:
+        type: string
+        enum: [much_faster, faster, similar, slower, much_slower]
+
+  PerformanceQuadrant:
+    type: object
+    properties:
+      name:
+        type: string
+        enum: [expert, precise_but_slow, fast_but_inaccurate, solid, needs_practice, mixed]
+      x:
+        type: number
+        format: float
+      y:
+        type: number
+        format: float
+
+  GetTestStatsRequest:
+    type: object
+    required:
+      - test_id
+    properties:
+      test_id:
+        type: string
+        example: "europe"
+
+  GetTestStatsResponse:
+    type: object
+    properties:
+      total_attempts:
+        type: integer
+      valid_attempts:
+        type: integer
+      avg_percentage:
+        type: number
+        format: float
+      avg_time_spent:
+        type: number
+        format: float
+      min_percentage:
+        type: number
+        format: float
+      max_percentage:
+        type: number
+        format: float
+      min_time_spent:
+        type: integer
+      max_time_spent:
+        type: integer

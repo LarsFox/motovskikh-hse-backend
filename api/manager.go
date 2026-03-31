@@ -30,11 +30,20 @@ type route struct {
 
 
 func routeGet(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
-	return route{http.MethodGet, path, handler, wrappers}
+	return newRoute(http.MethodGet, path, handler, wrappers...)
 }
 
 func routePost(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
-	return route{http.MethodPost, path, handler, wrappers}
+	return newRoute(http.MethodPost, path, handler, wrappers...)
+}
+
+func newRoute(method, path string, handler http.HandlerFunc, wrappers ...wrapper) route {
+	return route{
+		method,
+		path,
+		handler,
+		wrappers,
+	}
 }
 
 func NewManager(manager *manager.Manager) *Manager {
@@ -47,7 +56,7 @@ func NewManager(manager *manager.Manager) *Manager {
 	
 	// Swagger
 	swaggerHandler := httpSwagger.Handler(
-		httpSwagger.URL("/doc.json"),
+		httpSwagger.URL("doc.json"),
 		httpSwagger.DeepLinking(true),
 		httpSwagger.DocExpansion("none"),
 		httpSwagger.DomID("swagger-ui"),
@@ -57,6 +66,7 @@ func NewManager(manager *manager.Manager) *Manager {
 	return m
 }
 
+// Listen запускает сервер на указанном порту.
 func (m *Manager) Listen(addr string) error {
 	log.Println("API started on addr", addr)
 
@@ -73,15 +83,20 @@ func (m *Manager) Listen(addr string) error {
 
 func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
-		routeGet("/doc.json", m.hndlrSwaggerJSON),
-		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON), // Отправить ответы.
-		routePost("/stats/analysis/", m.hndlrGetAnalysis), // Базовый анализ.
-		// Для разработки.
-		routePost("/dev/create-test-data/", m.hndlrCreateTestData), // Создать тестовые данные.
+		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON), // После окончания теста получить анализ.
 	})
+	m.router.HandleFunc("/doc.json", func(w http.ResponseWriter, r *http.Request) {
+        http.ServeFile(w, r, "./doc.json")
+    })
+    
+    // Swagger UI
+    m.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+        httpSwagger.URL("/doc.json"),
+    ))
 	log.Println("Routes registered")
 }
 
+// addHandlers добавляет пути и обработчики запросов в мультиплексор (mux).
 func (m *Manager) addHandlers(routes []route) {
 	essentialWrappers := []wrapper{m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover}
 	for _, r := range routes {
@@ -96,11 +111,12 @@ func (m *Manager) addHandlers(routes []route) {
 	}
 }
 
-func (m *Manager) send(w http.ResponseWriter, data interface{}) {
+// send responds with a success.
+func (m *Manager) send(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"ok":     true,
 		"result": data,
 	}
@@ -108,8 +124,4 @@ func (m *Manager) send(w http.ResponseWriter, data interface{}) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		notify(err)
 	}
-}
-
-func (m *Manager) hndlrSwaggerJSON(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "./doc.json")
 }
