@@ -18,11 +18,13 @@ const (
 	defaultIdleTimeout  = time.Second * 30
 )
 
+// Manager is an API manager and listener.
 type Manager struct {
 	manager *manager.Manager
 	router  *mux.Router
 }
 
+// route is a single path for a mux handler.
 type route struct {
 	Method   string
 	Path     string

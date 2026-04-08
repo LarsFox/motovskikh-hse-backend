@@ -11,6 +11,7 @@ var (
 )
 
 // Notify сообщает об ошибке.
+// Вышка: заменил на обычный Лог.
 func Notify(e error, meta ...map[string]any) {
 	if len(meta) == 0 {
 		log.Println(e)
