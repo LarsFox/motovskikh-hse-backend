@@ -21,6 +21,10 @@ type dbTestStats struct {
 	MaxTimeSpent     int                    `gorm:"column:max_time_spent"`
 }
 
+func (dbTestStats) TableName() string {
+    return "test_stats"
+}
+
 // toEntityStats конвертирует DB-структуру в entity.TestStats.
 func (db *dbTestStats) toEntityStats() *entities.TestStats {
 	return &entities.TestStats{
