@@ -3,57 +3,49 @@ package mysql
 import (
 	"errors"
 	"fmt"
-	
-	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"gorm.io/gorm"
+	"time"
+
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
-// GetOrCreateBucket получает бакет или создает новый с дефолтными значениями.
-func (c *Client) GetOrCreateBucket(testID string, questionCount int) (*entities.TestBucket, error) {
-	bucket, err := c.GetBucket(testID)
+// GetOrCreateStats получает статистику или создает новую.
+func (c *Client) GetOrCreateStats(testName string, questionCount int) (*entities.TestStats, error) {
+	stats, err := c.GetStats(testName)
 	if err != nil && !errors.Is(err, entities.ErrNotFound) {
-		return nil, fmt.Errorf("failed to get bucket: %w", err)
+		return nil, fmt.Errorf("failed to get stats: %w", err)
 	}
-	if bucket != nil {
-		return bucket, nil
+	if stats != nil {
+		return stats, nil
 	}
-	// Создаем новый бакет, если не нашли.
-	newBucket := &entities.TestBucket{
-		TestID: testID,
+
+	// Создаем новую статистику.
+	newStats := entities.NewTestStats(testName, questionCount)
+
+	dbStats := fromEntityStats(newStats)
+	if err := c.db.Create(dbStats).Error; err != nil {
+		return nil, fmt.Errorf("failed to create stats: %w", err)
 	}
-	newBucket.InitializeBuckets(questionCount)
-	
-	if err := c.CreateBucket(newBucket); err != nil {
-		return nil, fmt.Errorf("failed to create bucket: %w", err)
-	}
-	// Получаем созданный бакет, чтобы убедиться, что всё сохранилось корректно.
-	createdBucket, err := c.GetBucket(testID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve created bucket: %w", err)
-	}
-	
-	return createdBucket, nil
+
+	return c.GetStats(testName)
 }
 
-// GetBucket получает бакет по ID теста.
-func (c *Client) GetBucket(testID string) (*entities.TestBucket, error) {
-	var bucket entities.TestBucket
-	err := c.db.Where("test_id = ?", testID).First(&bucket).Error
+// GetStats получает статистику по имени теста.
+func (c *Client) GetStats(testName string) (*entities.TestStats, error) {
+	var dbStats dbTestStats
+	err := c.db.Where("test_name = ?", testName).First(&dbStats).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, entities.ErrNotFound
 		}
-		return nil, fmt.Errorf("failed to get bucket: %w", err)
+		return nil, fmt.Errorf("failed to get stats: %w", err)
 	}
-	return &bucket, nil
+	return dbStats.toEntityStats(), nil
 }
 
-// SaveBucket сохраняет бакет.
-func (c *Client) SaveBucket(bucket *entities.TestBucket) error {
-	return c.db.Save(bucket).Error
-}
-
-// CreateBucket создает новый бакет.
-func (c *Client) CreateBucket(bucket *entities.TestBucket) error {
-	return c.db.Create(bucket).Error
+// SaveStats сохраняет статистику.
+func (c *Client) SaveStats(stats *entities.TestStats) error {
+	dbStats := fromEntityStats(stats)
+	dbStats.UpdatedAt = time.Now()
+	return c.db.Save(dbStats).Error
 }

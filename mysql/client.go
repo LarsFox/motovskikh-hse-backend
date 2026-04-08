@@ -3,9 +3,9 @@ package mysql
 import (
 	"fmt"
 	"strings"
+
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
 type Config struct {
@@ -36,7 +36,7 @@ func NewClient(cfg *Config) (*Client, error) {
 
 	// Автомиграция для всех таблиц
 	err = db.AutoMigrate(
-		&entities.TestBucket{},
+		&dbTestStats{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("dbs migrate err: %w", err)

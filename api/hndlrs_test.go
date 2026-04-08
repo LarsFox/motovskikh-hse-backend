@@ -2,10 +2,10 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"context"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
-	"github.com/LarsFox/motovskikh-hse-backend/manager"
 	"github.com/LarsFox/motovskikh-hse-backend/generated/mocks"
 	"github.com/LarsFox/motovskikh-hse-backend/generated/models"
+	"github.com/LarsFox/motovskikh-hse-backend/manager"
 )
 
 func TestHndlrSubmitTest(t *testing.T) {
@@ -31,7 +31,7 @@ func TestHndlrSubmitTest(t *testing.T) {
 		router:  mux.NewRouter(),
 	}
 	testName := "europe"
-	percentage := float32(75.0)
+	percentage := 75.0
 	timeSpent := int64(180)
 	questionCount := int64(30)
 
@@ -44,18 +44,18 @@ func TestHndlrSubmitTest(t *testing.T) {
 	body, err := json.Marshal(reqBody)
 	require.NoError(t, err)
 
-	// Ожидаем вызов GetOrCreateBucket
+	// Ожидаем вызов GetOrCreateStats.
 	mockDB.EXPECT().
-		GetOrCreateBucket("europe", 30).
-		Return(&entities.TestBucket{
-			TestID:        "europe",
+		GetOrCreateStats("europe", 30).
+		Return(&entities.TestStats{
+			TestName:      "europe",
 			Attempts:      100,
 			AvgPercentage: 65.0,
 			AvgTimeSpent:  200,
 			PercentDistrib: &entities.PercentDistribution{
-				Buckets: []entities.PercentBucket{
-					{Min: 70, Max: 75, Count: 10},
-					{Min: 75, Max: 80, Count: 8},
+				Buckets: map[float64]uint64{
+					70: 10,
+					75: 8,
 				},
 			},
 			TimeDistrib: &entities.TimeDistribution{
@@ -66,9 +66,9 @@ func TestHndlrSubmitTest(t *testing.T) {
 			},
 		}, nil)
 
-	// Ожидаем вызов SaveBucket
+	// Ожидаем вызов SaveStats.
 	mockDB.EXPECT().
-		SaveBucket(gomock.Any()).
+		SaveStats(gomock.Any()).
 		Return(nil)
 
 	req := httptest.NewRequestWithContext(context.Background(), "POST", "/tests/submit/", bytes.NewReader(body))

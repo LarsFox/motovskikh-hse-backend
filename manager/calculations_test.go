@@ -2,10 +2,10 @@ package manager
 
 import (
 	"testing"
-	
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	
+
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/LarsFox/motovskikh-hse-backend/generated/mocks"
 )
@@ -13,33 +13,30 @@ import (
 func TestCalculatePercentile(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	
+
 	mockDB := mocks.NewMockdb(ctrl)
 	m := New(mockDB)
-	
+
 	tests := []struct {
 		name       string
-		bucket     *entities.TestBucket
+		stats      *entities.TestStats
 		percentage float64
 		expected   float64
 	}{
 		{
-			name:       "nil bucket returns 100",
-			bucket:     nil,
+			name:       "nil stats returns 100",
+			stats:      nil,
 			percentage: 70,
 			expected:   100,
 		},
 		{
-			name: "empty bucket returns 100",
-			bucket: &entities.TestBucket{
+			name: "empty stats returns 100",
+			stats: &entities.TestStats{
 				Attempts: 0,
 				PercentDistrib: &entities.PercentDistribution{
-					Buckets: []entities.PercentBucket{
-						{Min: 0, Max: 20, Count: 0},
-						{Min: 20, Max: 40, Count: 0},
-						{Min: 40, Max: 60, Count: 0},
-						{Min: 60, Max: 80, Count: 0},
-						{Min: 80, Max: 100, Count: 0},
+					Buckets: map[float64]uint64{
+						0: 0, 5: 0, 10: 0, 15: 0, 20: 0, 25: 0, 30: 0, 35: 0, 40: 0, 45: 0,
+						50: 0, 55: 0, 60: 0, 65: 0, 70: 0, 75: 0, 80: 0, 85: 0, 90: 0, 95: 0, 100: 0,
 					},
 				},
 			},
@@ -47,44 +44,52 @@ func TestCalculatePercentile(t *testing.T) {
 			expected:   100,
 		},
 		{
-			name: "perfect score returns high percentile",
-			bucket: &entities.TestBucket{
+			name: "perfect score returns 100",
+			stats: &entities.TestStats{
 				Attempts: 100,
 				PercentDistrib: &entities.PercentDistribution{
-					Buckets: []entities.PercentBucket{
-						{Min: 0, Max: 20, Count: 10},
-						{Min: 20, Max: 40, Count: 20},
-						{Min: 40, Max: 60, Count: 30},
-						{Min: 60, Max: 80, Count: 25},
-						{Min: 80, Max: 100, Count: 15},
+					Buckets: map[float64]uint64{
+						0: 10, 5: 5, 10: 5, 15: 5, 20: 5, 25: 5, 30: 5, 35: 5, 40: 5, 45: 5,
+						50: 5, 55: 5, 60: 5, 65: 5, 70: 5, 75: 5, 80: 5, 85: 5, 90: 5, 95: 5, 100: 0,
 					},
 				},
 			},
-			percentage: 95,
-			expected:   92,
+			percentage: 98,
+			expected:   100,
 		},
 		{
 			name: "average score calculates correctly",
-			bucket: &entities.TestBucket{
+			stats: &entities.TestStats{
 				Attempts: 100,
 				PercentDistrib: &entities.PercentDistribution{
-					Buckets: []entities.PercentBucket{
-						{Min: 0, Max: 20, Count: 10},
-						{Min: 20, Max: 40, Count: 20},
-						{Min: 40, Max: 60, Count: 30},
-						{Min: 60, Max: 80, Count: 25},
-						{Min: 80, Max: 100, Count: 15},
+					Buckets: map[float64]uint64{
+						0: 10, 5: 10, 10: 10, 15: 10, 20: 10, 25: 10, 30: 10, 35: 10, 40: 10, 45: 10,
+						50: 0, 55: 0, 60: 0, 65: 0, 70: 0, 75: 0, 80: 0, 85: 0, 90: 0, 95: 0, 100: 0,
 					},
 				},
 			},
-			percentage: 50,
-			expected:   45,
+			percentage: 48,
+			expected:   95,
+		},
+		{
+			name: "50th percentile calculation",
+			stats: &entities.TestStats{
+				Attempts: 100,
+				PercentDistrib: &entities.PercentDistribution{
+					Buckets: map[float64]uint64{
+						0: 5, 5: 5, 10: 5, 15: 5, 20: 5, 25: 5, 30: 5, 35: 5, 40: 5, 45: 5,
+						50: 10, 55: 10, 60: 10, 65: 10, 70: 10, 75: 10, 80: 0, 85: 0, 90: 0, 95: 0, 100: 0,
+					},
+				},
+			},
+			percentage: 52,
+			expected:   55,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := m.CalculatePercentile(tt.bucket, tt.percentage)
+			result := m.calculatePercentile(tt.stats, tt.percentage)
 			assert.InDelta(t, tt.expected, result, 0.1)
 		})
 	}
@@ -93,19 +98,19 @@ func TestCalculatePercentile(t *testing.T) {
 func TestCalculateTimePercentile(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	
+
 	mockDB := mocks.NewMockdb(ctrl)
 	m := New(mockDB)
-	
+
 	tests := []struct {
-		name       string
-		bucket     *entities.TestBucket
-		timeSpent  int
-		expected   float64
+		name      string
+		stats     *entities.TestStats
+		timeSpent int
+		expected  float64
 	}{
 		{
 			name: "fast time returns low percentile",
-			bucket: &entities.TestBucket{
+			stats: &entities.TestStats{
 				Attempts: 100,
 				TimeDistrib: &entities.TimeDistribution{
 					Buckets: []entities.TimeBucket{
@@ -120,11 +125,11 @@ func TestCalculateTimePercentile(t *testing.T) {
 				},
 			},
 			timeSpent: 45,
-			expected:  15, // в первом бакете, половина от 30 = 15
+			expected:  85,
 		},
 		{
 			name: "slow time returns high percentile",
-			bucket: &entities.TestBucket{
+			stats: &entities.TestStats{
 				Attempts: 100,
 				TimeDistrib: &entities.TimeDistribution{
 					Buckets: []entities.TimeBucket{
@@ -139,17 +144,17 @@ func TestCalculateTimePercentile(t *testing.T) {
 				},
 			},
 			timeSpent: 400,
-			expected:  99, // 30+30+20+10+5+3 = 98 + половина последнего (1) = 99
+			expected:  1,
 		},
 		{
-			name: "nil bucket returns 100",
-			bucket:     nil,
-			timeSpent:  45,
-			expected:   100,
+			name:      "nil stats returns 100",
+			stats:     nil,
+			timeSpent: 45,
+			expected:  100,
 		},
 		{
-			name: "empty bucket returns 100",
-			bucket: &entities.TestBucket{
+			name: "empty stats returns 100",
+			stats: &entities.TestStats{
 				Attempts: 0,
 				TimeDistrib: &entities.TimeDistribution{
 					Buckets: []entities.TimeBucket{},
@@ -162,7 +167,7 @@ func TestCalculateTimePercentile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := m.CalculateTimePercentile(tt.bucket, tt.timeSpent)
+			result := m.calculateTimePercentile(tt.stats, tt.timeSpent)
 			assert.InDelta(t, tt.expected, result, 0.1)
 		})
 	}
@@ -171,10 +176,10 @@ func TestCalculateTimePercentile(t *testing.T) {
 func TestDetermineDistributionCategory(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	
+
 	mockDB := mocks.NewMockdb(ctrl)
 	m := New(mockDB)
-	
+
 	tests := []struct {
 		percentage float64
 		expected   string
@@ -189,7 +194,7 @@ func TestDetermineDistributionCategory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
-			result := m.DetermineDistributionCategory(tt.percentage)
+			result := m.determineDistributionCategory(tt.percentage)
 			assert.Equal(t, tt.expected, result.Name)
 		})
 	}
@@ -198,26 +203,26 @@ func TestDetermineDistributionCategory(t *testing.T) {
 func TestGetPerformanceQuadrant(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	
+
 	mockDB := mocks.NewMockdb(ctrl)
 	m := New(mockDB)
-	
+
 	tests := []struct {
-		name          string
-		percentage    float64
+		name           string
+		percentage     float64
 		timePercentile float64
-		expected      string
+		expected       string
 	}{
-		{"expert", 85, 90, "expert"},
-		{"slow expert", 85, 30, "slow_expert"},
-		{"fast but inaccurate", 60, 85, "fast_but_inaccurate"},
-		{"solid", 65, 60, "solid"},
-		{"needs practice", 40, 30, "needs_practice"},
+		{"expert", 85, 15, "expert"},                           // percentage >= 80, time <= 20
+		{"slow_expert", 85, 50, "slow_expert"},                 // percentage >= 80, time > 20
+		{"fast_but_inaccurate", 25, 15, "fast_but_inaccurate"}, // percentage < 30, time <= 20
+		{"solid", 65, 50, "solid"},                             // percentage >= 50, time <= 60
+		{"needs_practice", 40, 70, "needs_practice"},           // percentage < 50, time > 60
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := m.GetPerformanceQuadrant(tt.percentage, tt.timePercentile)
+			result := m.getPerformanceQuadrant(tt.percentage, tt.timePercentile)
 			assert.Equal(t, tt.expected, result["name"])
 			assert.InDelta(t, tt.percentage, result["x"], 0.001)
 			assert.InDelta(t, tt.timePercentile, result["y"], 0.001)

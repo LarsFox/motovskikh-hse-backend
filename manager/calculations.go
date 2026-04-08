@@ -2,86 +2,91 @@ package manager
 
 import (
 	"math"
+
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
 const (
-		defaultPercentile = 100.0
-    halfMultiplier = 0.5
+	step = 5
+	diff = 0.01
 
-		scoreBelowAverageMin = 20
-		scoreAverageMin     = 40
-		scoreGoodMin       = 60
-		scoreExcellentMin  = 75
-    scoreEliteMin      = 90
-    scoreMax           = 100
+	defaultPercentile = 100.0
+	halfMultiplier    = 0.5
 
-		percentileBeginner   = 20
-		percentileIntermediate = 40
-		percentileAdvanced   = 70
-    percentileExpert     = 90
+	scoreBelowAverageMin = 20
+	scoreAverageMin      = 40
+	scoreGoodMin         = 60
+	scoreExcellentMin    = 75
+	scoreEliteMin        = 90
+	scoreMax             = 100
 
-		diffSignificantlyHigher = 15
-    diffHigher              = 5
+	diffSignificantlyHigher = 15
+	diffHigher              = 5
 
-		timeMuchSlower = 60
-    timeSlower     = 20
+	timeMuchSlower = 60
+	timeSlower     = 20
 
-		quadHigh = 80
-		quadMid = 50
+	quadHigh = 80
+	quadMid  = 50
+	quadLow  = 30
+
+	quadTimeLow = 20
+	quadTimeMid = 60
 )
 
 // CalculatePercentile рассчитывает перцентиль.
-func (m *Manager) CalculatePercentile(bucket *entities.TestBucket, percentage float64) float64 {
-	if bucket == nil || bucket.Attempts == 0 || bucket.PercentDistrib == nil {
+func (m *Manager) calculatePercentile(stats *entities.TestStats, percentage float64) float64 {
+	if stats == nil || stats.Attempts == 0 || stats.PercentDistrib == nil {
 		return defaultPercentile
 	}
-	
+
 	var worseAttempts uint64
-	
-	for _, b := range bucket.PercentDistrib.Buckets {
-		switch {
-		case percentage > b.Max:
-    	worseAttempts += b.Count
-		case percentage >= b.Min:
+
+	// Находим ключ текущего процента.
+	currentKey := float64(int(percentage/step) * step)
+
+	// Проходим по всем бакетам.
+	for key, count := range stats.PercentDistrib.Buckets {
+		if key < currentKey {
+			// Попытки, которые хуже.
+			worseAttempts += count
+		} else if math.Abs(key-currentKey) < diff {
 			// Здесь делим пополам, потому что внутри бакета попытка не самая лучшая может быть.
-    	worseAttempts += uint64(float64(b.Count) * halfMultiplier)
-		default:
-    	break
-}
+			worseAttempts += uint64(float64(count) * halfMultiplier)
+		}
 	}
-	
-	percentile := (float64(worseAttempts) / float64(bucket.Attempts)) * defaultPercentile
+
+	percentile := (float64(worseAttempts) / float64(stats.Attempts)) * defaultPercentile
 	return math.Min(percentile, defaultPercentile)
 }
 
 // CalculateTimePercentile рассчитывает перцентиль по времени.
-func (m *Manager) CalculateTimePercentile(bucket *entities.TestBucket, timeSpent int) float64 {
-	if bucket == nil || bucket.Attempts == 0 || bucket.TimeDistrib == nil {
+func (m *Manager) calculateTimePercentile(stats *entities.TestStats, timeSpent int) float64 {
+	if stats == nil || stats.Attempts == 0 || stats.TimeDistrib == nil {
 		return defaultPercentile
 	}
-	
-	fasterAttempts := uint64(0)
-	
-	for _, b := range bucket.TimeDistrib.Buckets {
+
+	var fasterAttempts uint64
+
+	for _, b := range stats.TimeDistrib.Buckets {
 		if timeSpent < b.MinSeconds {
 			break
 		}
-		
+
 		if b.MaxSeconds == -1 || timeSpent <= b.MaxSeconds {
 			// Здесь делим пополам, потому что внутри бакета попытка не самая лучшая может быть.
 			fasterAttempts += uint64(float64(b.Count) * halfMultiplier)
 			break
-		} 
+		}
 		fasterAttempts += b.Count
 	}
-	
-	timePercentile := (float64(fasterAttempts) / float64(bucket.Attempts)) * defaultPercentile
+
+	timePercentile := scoreMax - (float64(fasterAttempts)/float64(stats.Attempts))*defaultPercentile
 	return math.Min(timePercentile, defaultPercentile)
 }
 
 // DetermineDistributionCategory определяет категорию распределения.
-func (m *Manager) DetermineDistributionCategory(percentage float64) *entities.DistributionCategory {
+func (m *Manager) determineDistributionCategory(percentage float64) *entities.DistributionCategory {
 	categories := []entities.DistributionCategory{
 		{Name: "elite", MinScore: scoreEliteMin, MaxScore: scoreMax},
 		{Name: "excellent", MinScore: scoreExcellentMin, MaxScore: scoreEliteMin},
@@ -99,53 +104,23 @@ func (m *Manager) DetermineDistributionCategory(percentage float64) *entities.Di
 	return &categories[3]
 }
 
-// DetermineSkillLevel определяет уровень навыка.
-func (m *Manager) DetermineSkillLevel(percentile float64) string {
-	switch {
-	case percentile >= percentileExpert:
-		return "expert"
-	case percentile >= percentileAdvanced:
-		return "advanced"
-	case percentile >= percentileIntermediate:
-		return "intermediate"
-	default:
-		return "beginner"
-	}
-}
-
-// GetTimeCategory определяет категорию скорости.
-func (m *Manager) GetTimeCategory(timePercentile float64) string {
-	switch {
-		case timePercentile >= percentileExpert:
-			return "very_fast"
-		case timePercentile >= percentileAdvanced:
-			return "fast"
-		case timePercentile >= percentileIntermediate:
-			return "average_speed"
-		case timePercentile >= percentileBeginner:
-			return "slow"
-		default:
-			return "very_slow"
-	}
-}
-
 // GetPerformanceQuadrant определяет квадрант производительности.
-func (m *Manager) GetPerformanceQuadrant(percentage float64, timePercentile float64) map[string]any {
+func (m *Manager) getPerformanceQuadrant(percentage float64, timePercentile float64) map[string]any {
 	var quadrant string
 
 	switch {
-		case percentage >= quadHigh && timePercentile >= quadHigh:
-			quadrant = "expert"
-		case percentage >= quadHigh && timePercentile < quadHigh:
-			quadrant = "slow_expert"
-		case percentage < quadHigh && timePercentile >= quadHigh:
-			quadrant = "fast_but_inaccurate"
-		case percentage >= quadMid && timePercentile >= quadMid:
-			quadrant = "solid"
-		case percentage < quadMid && timePercentile < quadMid:
-			quadrant = "needs_practice"
-		default:
-			quadrant = "mixed"
+	case percentage >= quadHigh && timePercentile <= quadTimeLow:
+		quadrant = "expert"
+	case percentage >= quadHigh && timePercentile > quadTimeLow:
+		quadrant = "slow_expert"
+	case percentage < quadLow && timePercentile <= quadTimeLow:
+		quadrant = "fast_but_inaccurate"
+	case percentage >= quadMid && timePercentile <= quadTimeMid:
+		quadrant = "solid"
+	case percentage < quadMid && timePercentile > quadTimeMid:
+		quadrant = "needs_practice"
+	default:
+		quadrant = "mixed"
 	}
 
 	return map[string]any{
@@ -156,7 +131,7 @@ func (m *Manager) GetPerformanceQuadrant(percentage float64, timePercentile floa
 }
 
 // GetComparisonStatus возвращает статус сравнения с средним.
-func (m *Manager) GetComparisonStatus(userValue, avgValue float64) string {
+func (m *Manager) getComparisonStatus(userValue, avgValue float64) string {
 	diff := userValue - avgValue
 	switch {
 	case diff > diffSignificantlyHigher:
@@ -173,7 +148,7 @@ func (m *Manager) GetComparisonStatus(userValue, avgValue float64) string {
 }
 
 // GetTimeComparisonStatus возвращает статус сравнения времени.
-func (m *Manager) GetTimeComparisonStatus(userTime, avgTime float64) string {
+func (m *Manager) getTimeComparisonStatus(userTime, avgTime float64) string {
 	diff := userTime - avgTime
 	switch {
 	case diff < -timeMuchSlower:

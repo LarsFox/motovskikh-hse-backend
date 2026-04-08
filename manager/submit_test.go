@@ -2,10 +2,10 @@ package manager
 
 import (
 	"testing"
-	
-	"github.com/stretchr/testify/require"
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/LarsFox/motovskikh-hse-backend/generated/mocks"
@@ -23,19 +23,18 @@ func TestSubmitTestResult_Success(t *testing.T) {
 	timeSpent := 180
 	questionCount := 30
 
-
-	testBucket := &entities.TestBucket{
-		TestID:        testName,
+	testStats := &entities.TestStats{
+		TestName:      testName,
 		Attempts:      100,
 		AvgPercentage: 65.0,
 		AvgTimeSpent:  200,
 		PercentDistrib: &entities.PercentDistribution{
-			Buckets: []entities.PercentBucket{
-				{Min: 0, Max: 20, Count: 10},
-				{Min: 20, Max: 40, Count: 20},
-				{Min: 40, Max: 60, Count: 30},
-				{Min: 60, Max: 80, Count: 25},
-				{Min: 80, Max: 100, Count: 15},
+			Buckets: map[float64]uint64{
+				0:  10,
+				20: 20,
+				40: 30,
+				60: 25,
+				80: 15,
 			},
 		},
 		TimeDistrib: &entities.TimeDistribution{
@@ -52,11 +51,11 @@ func TestSubmitTestResult_Success(t *testing.T) {
 	}
 
 	mockDB.EXPECT().
-		GetOrCreateBucket(testName, questionCount).
-		Return(testBucket, nil)
+		GetOrCreateStats(testName, questionCount).
+		Return(testStats, nil)
 
 	mockDB.EXPECT().
-		SaveBucket(gomock.Any()).
+		SaveStats(gomock.Any()).
 		Return(nil)
 
 	result, err := mgr.SubmitTestResult(testName, percentage, timeSpent, questionCount)
@@ -82,19 +81,17 @@ func TestSubmitTestResult_InvalidAttempt(t *testing.T) {
 	timeSpent := 30
 	questionCount := 30
 
-
-	testBucket := &entities.TestBucket{
-		TestID:   testName,
+	testStats := &entities.TestStats{
+		TestName: testName,
 		Attempts: 0,
 	}
 
+	mockDB.EXPECT().
+		GetOrCreateStats(testName, questionCount).
+		Return(testStats, nil)
 
 	mockDB.EXPECT().
-		GetOrCreateBucket(testName, questionCount).
-		Return(testBucket, nil)
-
-	mockDB.EXPECT().
-		SaveBucket(gomock.Any()).
+		SaveStats(gomock.Any()).
 		Return(nil)
 
 	result, err := mgr.SubmitTestResult(testName, percentage, timeSpent, questionCount)

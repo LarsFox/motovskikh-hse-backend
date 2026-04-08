@@ -5,8 +5,10 @@ import (
 	"log"
 	"net/http"
 	"time"
+
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
+
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 )
 
@@ -27,7 +29,6 @@ type route struct {
 	Handler  http.HandlerFunc
 	Wrappers []wrapper
 }
-
 
 func routeGet(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
 	return newRoute(http.MethodGet, path, handler, wrappers...)
@@ -53,7 +54,7 @@ func NewManager(manager *manager.Manager) *Manager {
 	}
 
 	m.addRoutes()
-	
+
 	// Swagger
 	swaggerHandler := httpSwagger.Handler(
 		httpSwagger.URL("doc.json"),
@@ -61,7 +62,7 @@ func NewManager(manager *manager.Manager) *Manager {
 		httpSwagger.DocExpansion("none"),
 		httpSwagger.DomID("swagger-ui"),
 	)
-	
+
 	m.router.PathPrefix("/swagger/").Handler(swaggerHandler)
 	return m
 }
@@ -86,13 +87,13 @@ func (m *Manager) addRoutes() {
 		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON), // После окончания теста получить анализ.
 	})
 	m.router.HandleFunc("/doc.json", func(w http.ResponseWriter, r *http.Request) {
-        http.ServeFile(w, r, "./doc.json")
-    })
-    
-    // Swagger UI
-    m.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-        httpSwagger.URL("/doc.json"),
-    ))
+		http.ServeFile(w, r, "./doc.json")
+	})
+
+	// Swagger UI
+	m.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("/doc.json"),
+	))
 	log.Println("Routes registered")
 }
 

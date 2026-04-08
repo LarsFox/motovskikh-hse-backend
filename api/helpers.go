@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
-	"github.com/LarsFox/motovskikh-hse-backend/entities"
+
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
 const (
@@ -73,15 +75,4 @@ func unmarshalParams(r *http.Request, prms runtime.Validatable) error {
 	}
 
 	return nil
-}
-
-func (m *Manager) sendError(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	if err := json.NewEncoder(w).Encode(map[string]any{
-    "ok":    false,
-    "error": message,
-	}); err != nil {
-    notify(err)
-	}
 }

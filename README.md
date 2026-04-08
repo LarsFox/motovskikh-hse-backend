@@ -12,15 +12,21 @@
 │   ├── languages.go        	# Константы языков
 │   └── notify.go           	# Логирование ошибок
 │   └── analysis.go
-│   └── bucket.go
+│   └── percent_bucket.go
+│   └── time_bucket.go
+│   └── test_stats.go
 ├── generated/            		# Сгенерированный код Swagger
-│   └── models/          		# Модели из swagger.yml
+│   └── models/          		  # Модели из swagger.yml
+│   └── mocks/
 ├── manager/              		# Бизнес-логика (service layer)
-│   └── manager.go       		# Основная логика
-│   └── calculations.go       	# Вычисления
-│   └── submit.go       		# Основной метод
+│   └── manager.go       		  # Основная логика
+│   └── calculations.go       # Вычисления
+│   └── submit.go       		  # Основной метод
 │   └── validation.go       	# Валидация
-├── mysql/               		# Работа с БД (data access layer)
-│   ├── client.go       		# Клиент MySQL
-│   └── client_bucket.go 		# Работа с бакетами и БД
-└── doc.json            		# Swagger документация
+├── mysql/               		  # Работа с БД (data access layer)
+│   ├── client.go       		  # Клиент MySQL
+│   └── client_bucket.go 		  # Работа с бакетами и БД
+│   └── db_percent_bucket.go 	# Работа с бакетами результатов в БД
+│   └── db_time_bucket.go 		# Работа с бакетами времени в БД
+│   └── db_stats.go 		      # Работа со статистикой в БД
+└── doc.json            		  # Swagger документация

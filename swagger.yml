@@ -521,7 +521,7 @@ definitions:
         example: "europe"
       percentage:
         type: number
-        format: float
+        format: double
         minimum: 0
         maximum: 100
         description: "Процент правильных ответов"

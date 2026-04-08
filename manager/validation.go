@@ -1,15 +1,15 @@
 package manager
 
 const (
-    secondsPerQuestionMin = 2
-    smallTestThreshold1   = 5
-    smallTestThreshold2   = 10
-    minPercentageDefault  = 5.0
-    minPercentageSmall    = 10.0
+	secondsPerQuestionMin = 2
+	smallTestThreshold1   = 5
+	smallTestThreshold2   = 10
+	minPercentageDefault  = 5.0
+	minPercentageSmall    = 10.0
 )
 
 // ValidateAttempt проверяет валидность попытки.
-func (m *Manager) ValidateAttempt(_ string, percentage float64, timeSpent int, questionCount int) (bool) {
+func (m *Manager) validateAttempt(_ string, percentage float64, timeSpent int, questionCount int) bool {
 	// Минимальное время: 2 секунды на вопрос.
 	minTime := questionCount * secondsPerQuestionMin
 	// Для маленьких тестов.
