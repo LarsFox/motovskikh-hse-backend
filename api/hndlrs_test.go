@@ -46,7 +46,7 @@ func TestHndlrSubmitTest(t *testing.T) {
 
 	// Ожидаем вызов GetOrCreateStats.
 	mockDB.EXPECT().
-		GetOrCreateStats("europe", 30).
+		GetOrCreateStats("europe", int64(30)).
 		Return(&entities.TestStats{
 			TestName:      "europe",
 			Attempts:      100,

@@ -53,7 +53,7 @@ func TestValidateAttempt_WithTest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid := m.validateAttempt(tt.testName, tt.percentage, tt.timeSpent, tt.questionCount)
+			valid := m.validateAttempt(tt.testName, tt.percentage, int64(tt.timeSpent), int64(tt.questionCount))
 			assert.Equal(t, tt.expectValid, valid)
 		})
 	}

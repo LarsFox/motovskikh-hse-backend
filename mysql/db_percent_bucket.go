@@ -52,13 +52,13 @@ func (pd *dbPercentDistribution) toEntity() *entities.PercentDistribution {
 }
 
 // FromEntity конвертирует entity в DB-структуру.
-func (pd *dbPercentDistribution) fromEntity(e *entities.PercentDistribution) *dbPercentDistribution {
-	if e == nil || len(e.Buckets) == 0 {
-		return &dbPercentDistribution{Buckets: make(map[string]uint64)}
-	}
-	buckets := make(map[string]uint64)
-	for k, v := range e.Buckets {
-		buckets[fmt.Sprintf("%f", k)] = v
-	}
-	return &dbPercentDistribution{Buckets: buckets}
+func fromEntityPercent(e *entities.PercentDistribution) *dbPercentDistribution {
+    if e == nil || len(e.Buckets) == 0 {
+        return &dbPercentDistribution{Buckets: make(map[string]uint64)}
+    }
+    buckets := make(map[string]uint64)
+    for k, v := range e.Buckets {
+        buckets[fmt.Sprintf("%f", k)] = v
+    }
+    return &dbPercentDistribution{Buckets: buckets}
 }

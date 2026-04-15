@@ -10,7 +10,7 @@ import (
 const roundMultiplier = 10
 
 // SubmitTestResult сохраняет результат теста и возвращает анализ.
-func (m *Manager) SubmitTestResult(testName string, percentage float64, timeSpent int, questionCount int) (map[string]any, error) {
+func (m *Manager) SubmitTestResult(testName string, percentage float64, timeSpent int64, questionCount int64) (map[string]any, error) {
 	// Валидация.
 	isValid := m.validateAttempt(testName, percentage, timeSpent, questionCount)
 
@@ -38,7 +38,7 @@ func (m *Manager) SubmitTestResult(testName string, percentage float64, timeSpen
 		stats.UpdatePercentDistribution(percentage)
 		stats.UpdateTimeDistribution(timeSpent)
 		stats.UpdateAverages(percentage, float64(timeSpent))
-		stats.UpdateMinMax(percentage, timeSpent)
+		stats.UpdateMinMax(timeSpent)
 	}
 
 	// Сохраняем бакет.
@@ -71,9 +71,7 @@ func (m *Manager) SubmitTestResult(testName string, percentage float64, timeSpen
 }
 
 // buildAnalysis формирует анализ.
-func (m *Manager) buildAnalysis(percentage float64, timeSpent int, percentileRank, timePercentile float64, stats *entities.TestStatsResponse, isValid bool, percentageDiff, timeDiff float64) map[string]any {
-	category := m.determineDistributionCategory(percentage)
-
+func (m *Manager) buildAnalysis(percentage float64, timeSpent int64, percentileRank, timePercentile float64, stats *entities.TestStatsResponse, isValid bool, percentageDiff, timeDiff float64) map[string]any {
 	return map[string]any{
 		"percentage": percentage,
 		"time_spent": timeSpent,
@@ -84,18 +82,12 @@ func (m *Manager) buildAnalysis(percentage float64, timeSpent int, percentileRan
 		"better_than":     int(percentileRank),
 		"faster_than":     int(timePercentile),
 
-		"category": category.Name,
-
 		"average_percentage": math.Round(stats.AvgPercentage*roundMultiplier) / roundMultiplier,
 		"average_time":       math.Round(stats.AvgTimeSpent*roundMultiplier) / roundMultiplier,
 
 		"vs_average": map[string]any{
 			"percentage_diff":   math.Round(percentageDiff*roundMultiplier) / roundMultiplier,
 			"time_diff":         math.Round(timeDiff*roundMultiplier) / roundMultiplier,
-			"percentage_status": m.getComparisonStatus(percentage, stats.AvgPercentage),
-			"time_status":       m.getTimeComparisonStatus(float64(timeSpent), stats.AvgTimeSpent),
 		},
-
-		"quadrant": m.getPerformanceQuadrant(percentage, timePercentile),
 	}
 }

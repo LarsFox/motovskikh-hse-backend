@@ -6,13 +6,13 @@ type TimeDistribution struct {
 }
 
 type TimeBucket struct {
-	MinSeconds int    `json:"min_seconds"`
-	MaxSeconds int    `json:"max_seconds"`
+	MinSeconds int64  `json:"min_seconds"`
+	MaxSeconds int64  `json:"max_seconds"`
 	Count      uint64 `json:"count"`
 }
 
 // InitTimeBuckets создает интервалы на основе количества вопросов.
-func (s *TestStats) InitTimeBuckets(questionCount int) {
+func (s *TestStats) InitTimeBuckets(questionCount int64) {
 	s.TimeDistrib = &TimeDistribution{
 		Buckets: make([]TimeBucket, 0),
 	}
@@ -26,7 +26,7 @@ func (s *TestStats) InitTimeBuckets(questionCount int) {
 	prevMax := 0
 	for i, mult := range steps {
 		boundary := int(float64(minTime) * mult)
-		boundary = min(boundary, maxTime)
+		boundary = min(boundary, int(maxTime))
 
 		if boundary <= prevMax {
 			continue
@@ -34,14 +34,14 @@ func (s *TestStats) InitTimeBuckets(questionCount int) {
 
 		if i == len(steps)-1 {
 			s.TimeDistrib.Buckets = append(s.TimeDistrib.Buckets, TimeBucket{
-				MinSeconds: prevMax,
+				MinSeconds: int64(prevMax),
 				MaxSeconds: -1,
 				Count:      0,
 			})
 		} else {
 			s.TimeDistrib.Buckets = append(s.TimeDistrib.Buckets, TimeBucket{
-				MinSeconds: prevMax,
-				MaxSeconds: boundary,
+				MinSeconds: int64(prevMax),
+				MaxSeconds: int64(boundary),
 				Count:      0,
 			})
 			prevMax = boundary
@@ -50,7 +50,7 @@ func (s *TestStats) InitTimeBuckets(questionCount int) {
 }
 
 // GetTimeBucketIndex возвращает индекс бакета для заданного времени.
-func (s *TestStats) GetTimeBucketIndex(timeSpent int) int {
+func (s *TestStats) GetTimeBucketIndex(timeSpent int64) int {
 	if s.TimeDistrib == nil || len(s.TimeDistrib.Buckets) == 0 {
 		return 0
 	}
@@ -67,7 +67,7 @@ func (s *TestStats) GetTimeBucketIndex(timeSpent int) int {
 }
 
 // UpdateTimeDistribution обновляет временное распределение.
-func (s *TestStats) UpdateTimeDistribution(timeSpent int) {
+func (s *TestStats) UpdateTimeDistribution(timeSpent int64) {
 	idx := s.GetTimeBucketIndex(timeSpent)
 	if idx >= 0 && idx < len(s.TimeDistrib.Buckets) {
 		s.TimeDistrib.Buckets[idx].Count++

@@ -20,8 +20,8 @@ func TestSubmitTestResult_Success(t *testing.T) {
 
 	testName := "europe"
 	percentage := 75.0
-	timeSpent := 180
-	questionCount := 30
+	timeSpent := int64(180)
+	questionCount := int64(30)
 
 	testStats := &entities.TestStats{
 		TestName:      testName,
@@ -66,7 +66,7 @@ func TestSubmitTestResult_Success(t *testing.T) {
 
 	analysis := result["analysis"].(map[string]any)
 	assert.InDelta(t, 75.0, analysis["percentage"], 0.001)
-	assert.Equal(t, 180, analysis["time_spent"])
+	assert.Equal(t, int64(180), analysis["time_spent"])
 }
 
 func TestSubmitTestResult_InvalidAttempt(t *testing.T) {
@@ -78,8 +78,8 @@ func TestSubmitTestResult_InvalidAttempt(t *testing.T) {
 
 	testName := "europe"
 	percentage := 3.0
-	timeSpent := 30
-	questionCount := 30
+	timeSpent := int64(30)
+	questionCount := int64(30)
 
 	testStats := &entities.TestStats{
 		TestName: testName,

@@ -14,16 +14,12 @@ func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.TestName == nil || req.Percentage == nil || req.TimeSpent == nil || req.QuestionCount == nil {
-		m.sendErrorPage(w, http.StatusBadRequest)
-		return
-	}
 
 	result, err := m.manager.SubmitTestResult(
 		*req.TestName,
 		*req.Percentage,
-		int(*req.TimeSpent),
-		int(*req.QuestionCount),
+		*req.TimeSpent,
+		*req.QuestionCount,
 	)
 	if err != nil {
 		m.sendErrorPage(w, http.StatusInternalServerError)

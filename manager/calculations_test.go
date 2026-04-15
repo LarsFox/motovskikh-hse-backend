@@ -167,65 +167,8 @@ func TestCalculateTimePercentile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := m.calculateTimePercentile(tt.stats, tt.timeSpent)
+			result := m.calculateTimePercentile(tt.stats, int64(tt.timeSpent))
 			assert.InDelta(t, tt.expected, result, 0.1)
-		})
-	}
-}
-
-func TestDetermineDistributionCategory(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockDB := mocks.NewMockdb(ctrl)
-	m := New(mockDB)
-
-	tests := []struct {
-		percentage float64
-		expected   string
-	}{
-		{95, "elite"},
-		{82, "excellent"},
-		{68, "good"},
-		{50, "average"},
-		{30, "below_average"},
-		{10, "needs_improvement"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
-			result := m.determineDistributionCategory(tt.percentage)
-			assert.Equal(t, tt.expected, result.Name)
-		})
-	}
-}
-
-func TestGetPerformanceQuadrant(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockDB := mocks.NewMockdb(ctrl)
-	m := New(mockDB)
-
-	tests := []struct {
-		name           string
-		percentage     float64
-		timePercentile float64
-		expected       string
-	}{
-		{"expert", 85, 15, "expert"},                           // percentage >= 80, time <= 20
-		{"slow_expert", 85, 50, "slow_expert"},                 // percentage >= 80, time > 20
-		{"fast_but_inaccurate", 25, 15, "fast_but_inaccurate"}, // percentage < 30, time <= 20
-		{"solid", 65, 50, "solid"},                             // percentage >= 50, time <= 60
-		{"needs_practice", 40, 70, "needs_practice"},           // percentage < 50, time > 60
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := m.getPerformanceQuadrant(tt.percentage, tt.timePercentile)
-			assert.Equal(t, tt.expected, result["name"])
-			assert.InDelta(t, tt.percentage, result["x"], 0.001)
-			assert.InDelta(t, tt.timePercentile, result["y"], 0.001)
 		})
 	}
 }

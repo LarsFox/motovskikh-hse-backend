@@ -20,10 +20,8 @@ type TestStats struct {
 	TimeDistrib    *TimeDistribution    `json:"time_distrib"`
 	AvgPercentage  float64              `json:"avg_percentage"`
 	AvgTimeSpent   float64              `json:"avg_time_spent"`
-	MinPercentage  float64              `json:"min_percentage"`
-	MaxPercentage  float64              `json:"max_percentage"`
-	MinTimeSpent   int                  `json:"min_time_spent"`
-	MaxTimeSpent   int                  `json:"max_time_spent"`
+	MinTimeSpent   int64                `json:"min_time_spent"`
+	MaxTimeSpent   int64                `json:"max_time_spent"`
 }
 
 // TestStatsResponse - статистика для ответа клиенту.
@@ -36,7 +34,7 @@ type TestStatsResponse struct {
 }
 
 // NewTestStats создает новую статистику теста с инициализированными бакетами.
-func NewTestStats(testName string, questionCount int) *TestStats {
+func NewTestStats(testName string, questionCount int64) *TestStats {
 	stats := &TestStats{
 		TestName:  testName,
 		UpdatedAt: time.Now(),
@@ -60,22 +58,13 @@ func (s *TestStats) UpdateAverages(percentage, timeSpent float64) {
 }
 
 // UpdateMinMax обновляет минимальные и максимальные значения.
-func (s *TestStats) UpdateMinMax(percentage float64, timeSpent int) {
+func (s *TestStats) UpdateMinMax(timeSpent int64) {
 	if s.Attempts == 1 {
-		s.MinPercentage = percentage
-		s.MaxPercentage = percentage
 		s.MinTimeSpent = timeSpent
 		s.MaxTimeSpent = timeSpent
 		return
 	}
 
-	// Если не первая попытка
-	if percentage < s.MinPercentage {
-		s.MinPercentage = percentage
-	}
-	if percentage > s.MaxPercentage {
-		s.MaxPercentage = percentage
-	}
 	if timeSpent < s.MinTimeSpent {
 		s.MinTimeSpent = timeSpent
 	}

@@ -13,8 +13,8 @@ type dbTimeDistribution struct {
 }
 
 type dbTimeBucket struct {
-	MinSeconds int    `json:"min_seconds"`
-	MaxSeconds int    `json:"max_seconds"`
+	MinSeconds int64  `json:"min_seconds"`
+	MaxSeconds int64  `json:"max_seconds"`
 	Count      uint64 `json:"count"`
 }
 
@@ -56,7 +56,7 @@ func (td *dbTimeDistribution) toEntity() *entities.TimeDistribution {
 }
 
 // FromEntity конвертирует entity в DB-структуру.
-func (td *dbTimeDistribution) fromEntity(e *entities.TimeDistribution) *dbTimeDistribution {
+func fromEntityTime(e *entities.TimeDistribution) *dbTimeDistribution {
 	if e == nil || len(e.Buckets) == 0 {
 		return nil
 	}

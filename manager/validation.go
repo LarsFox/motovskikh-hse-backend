@@ -9,7 +9,7 @@ const (
 )
 
 // ValidateAttempt проверяет валидность попытки.
-func (m *Manager) validateAttempt(_ string, percentage float64, timeSpent int, questionCount int) bool {
+func (m *Manager) validateAttempt(_ string, percentage float64, timeSpent int64, questionCount int64) bool {
 	// Минимальное время: 2 секунды на вопрос.
 	minTime := questionCount * secondsPerQuestionMin
 	// Для маленьких тестов.

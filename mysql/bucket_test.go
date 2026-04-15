@@ -141,8 +141,6 @@ func TestSaveAndRetrieveStats(t *testing.T) {
 		Attempts:      100,
 		AvgPercentage: 68.5,
 		AvgTimeSpent:  150.5,
-		MinPercentage: 20.0,
-		MaxPercentage: 95.0,
 		MinTimeSpent:  60,
 		MaxTimeSpent:  300,
 	}
@@ -161,8 +159,6 @@ func TestSaveAndRetrieveStats(t *testing.T) {
 	assert.Equal(t, stats.Attempts, retrieved.Attempts)
 	assert.InDelta(t, stats.AvgPercentage, retrieved.AvgPercentage, 0.001)
 	assert.InDelta(t, stats.AvgTimeSpent, retrieved.AvgTimeSpent, 0.001)
-	assert.InDelta(t, stats.MinPercentage, retrieved.MinPercentage, 0.001)
-	assert.InDelta(t, stats.MaxPercentage, retrieved.MaxPercentage, 0.001)
 	assert.Equal(t, stats.MinTimeSpent, retrieved.MinTimeSpent)
 	assert.Equal(t, stats.MaxTimeSpent, retrieved.MaxTimeSpent)
 }
