@@ -10,6 +10,7 @@ func NewStemmer() *Stemmer {
 }
 
 func (s *Stemmer) Stem(word string) string {
+	// Используем snowball для выделения корня.
 	stem, err := snowball.Stem(word, "russian", true)
 	if err != nil {
 		return word

@@ -50,6 +50,27 @@ func (w *Whitelist) Load(words []string, normalizer Normalizer) {
 	}
 }
 
-func (w *Whitelist) Contains(word string) bool {
-	return w.words[word]
+// Черный список корней.
+type RootBlacklist struct {
+	roots map[string]bool
+}
+
+func NewRootBlacklist() *RootBlacklist {
+	return &RootBlacklist{
+		roots: make(map[string]bool),
+	}
+}
+
+func (r *RootBlacklist) Load(roots []string, normalizer Normalizer) {
+	r.roots = make(map[string]bool)
+	for _, root := range roots {
+		norm := normalizer.Normalize(root)
+		if norm != "" {
+			r.roots[norm] = true
+		}
+	}
+}
+
+func (r *RootBlacklist) Contains(root string) bool {
+	return r.roots[root]
 }

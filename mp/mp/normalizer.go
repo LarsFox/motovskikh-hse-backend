@@ -14,6 +14,7 @@ type Normalizer interface {
 type TextNormalizer struct {
 	charReplacements map[string]string
 	homoglyphs       map[rune]rune
+	translitMap      map[string][]string
 }
 
 // Инициализация нормализатора.
@@ -36,6 +37,7 @@ func NewTextNormalizer(config *Config) *TextNormalizer {
 			'i': 'и',
 			'l': 'л',
 		},
+		translitMap: config.TranslitMap,
 	}
 }
 
@@ -50,6 +52,9 @@ func (n *TextNormalizer) Normalize(text string) string {
 	for from, to := range n.charReplacements {
 		text = strings.ReplaceAll(text, from, to)
 	}
+
+	// Транслитерация.
+	text = n.LatToCyr(text)
 
 	// Нормализация по homoglyph.
 	var builder strings.Builder
@@ -73,7 +78,17 @@ func (n *TextNormalizer) Normalize(text string) string {
 	return collapseRepeats(string(clean))
 }
 
-// Убираем повторения слов.
+func (n *TextNormalizer) LatToCyr(text string) string {
+    result := text
+    for cyr, latVariants := range n.translitMap {
+        for _, lat := range latVariants {
+            result = strings.ReplaceAll(result, lat, cyr)
+        }
+    }
+    return result
+}
+
+// Убираем повторения.
 func collapseRepeats(s string) string {
 	var result []rune
 	var prev rune
