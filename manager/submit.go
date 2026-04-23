@@ -3,14 +3,13 @@ package manager
 import (
 	"fmt"
 	"math"
-
-	"github.com/LarsFox/motovskikh-hse-backend/entities"
+	"github.com/LarsFox/motovskikh-hse-backend/generated/models"
 )
 
 const roundMultiplier = 10
 
 // SubmitTestResult сохраняет результат теста и возвращает анализ.
-func (m *Manager) SubmitTestResult(testName string, percentage float64, timeSpent int64, questionCount int64) (map[string]any, error) {
+func (m *Manager) SubmitTestResult(testName string, percentage float64, timeSpent int64, questionCount int64) (*models.SubmitTestResponse, error) {
 	// Валидация.
 	isValid := m.validateAttempt(testName, percentage, timeSpent, questionCount)
 
@@ -35,59 +34,37 @@ func (m *Manager) SubmitTestResult(testName string, percentage float64, timeSpen
 	// Обновляем бакет.
 	if isValid {
 		stats.Attempts++
-		stats.UpdatePercentDistribution(percentage)
-		stats.UpdateTimeDistribution(timeSpent)
-		stats.UpdateAverages(percentage, float64(timeSpent))
-		stats.UpdateMinMax(timeSpent)
-	}
+		updatePercentDistribution(stats, percentage)
+		updateTimeDistribution(stats, timeSpent)
+		updateAverages(stats, percentage, float64(timeSpent))
+		updateMinMax(stats, timeSpent)
 
-	// Сохраняем бакет.
-	if err := m.db.SaveStats(stats); err != nil {
-		return nil, fmt.Errorf("failed to save stats: %w", err)
-	}
-
-	// Формируем статистику для ответа.
-	responseStats := &entities.TestStatsResponse{
-		TestName:      testName,
-		TotalAttempts: int(stats.Attempts), //nolint:gosec
-		AvgPercentage: stats.AvgPercentage,
-		AvgTimeSpent:  stats.AvgTimeSpent,
-		UpdatedAt:     stats.UpdatedAt,
+		// Сохраняем бакет.
+		if err := m.db.SaveStats(stats); err != nil {
+			return nil, fmt.Errorf("failed to save stats: %w", err)
+		}
 	}
 
 	percentageDiff := percentage - stats.AvgPercentage
 	timeDiff := float64(timeSpent) - stats.AvgTimeSpent
 
-	// Формируем анализ.
-	analysis := m.buildAnalysis(percentage, timeSpent, percentileRank, timePercentile, responseStats, isValid, percentageDiff, timeDiff)
-
-	// Возвращаем результат.
-	result := map[string]any{
-		"submitted": true,
-		"analysis":  analysis,
-	}
-
-	return result, nil
-}
-
-// buildAnalysis формирует анализ.
-func (m *Manager) buildAnalysis(percentage float64, timeSpent int64, percentileRank, timePercentile float64, stats *entities.TestStatsResponse, isValid bool, percentageDiff, timeDiff float64) map[string]any {
-	return map[string]any{
-		"percentage": percentage,
-		"time_spent": timeSpent,
-		"is_valid":   isValid,
-
-		"percentile_rank": math.Round(percentileRank*roundMultiplier) / roundMultiplier,
-		"time_percentile": math.Round(timePercentile*roundMultiplier) / roundMultiplier,
-		"better_than":     int(percentileRank),
-		"faster_than":     int(timePercentile),
-
-		"average_percentage": math.Round(stats.AvgPercentage*roundMultiplier) / roundMultiplier,
-		"average_time":       math.Round(stats.AvgTimeSpent*roundMultiplier) / roundMultiplier,
-
-		"vs_average": map[string]any{
-			"percentage_diff":   math.Round(percentageDiff*roundMultiplier) / roundMultiplier,
-			"time_diff":         math.Round(timeDiff*roundMultiplier) / roundMultiplier,
-		},
-	}
+	// Формируем ответ.
+	return &models.SubmitTestResponse{
+        Submitted: isValid,
+        Analysis: &models.TestAnalysis{
+					Percentage:        percentage,
+					TimeSpent:         timeSpent,
+					IsValid:           isValid,
+					PercentileRank:    math.Round(percentileRank*roundMultiplier) / roundMultiplier,
+					TimePercentile:    math.Round(timePercentile*roundMultiplier) / roundMultiplier,
+					BetterThan:        math.Round(percentileRank*roundMultiplier) / roundMultiplier,
+       		FasterThan:        math.Round(timePercentile*roundMultiplier) / roundMultiplier,
+					AveragePercentage: math.Round(stats.AvgPercentage*roundMultiplier) / roundMultiplier,
+					AverageTime:       math.Round(stats.AvgTimeSpent*roundMultiplier) / roundMultiplier,
+					VsAverage: 				 &models.TestAnalysisVsAverage{
+															PercentageDiff: math.Round(percentageDiff*roundMultiplier) / roundMultiplier,
+															TimeDiff:       math.Round(timeDiff*roundMultiplier) / roundMultiplier,
+														 },
+        	},
+  }, nil
 }

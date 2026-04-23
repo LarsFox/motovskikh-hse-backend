@@ -11,12 +11,12 @@ const (
 // ValidateAttempt проверяет валидность попытки.
 func (m *Manager) validateAttempt(_ string, percentage float64, timeSpent int64, questionCount int64) bool {
 	// Минимальное время: 2 секунды на вопрос.
-	minTime := questionCount * secondsPerQuestionMin
+	minTime := float64(questionCount * secondsPerQuestionMin)
 	// Для маленьких тестов.
 	if questionCount < smallTestThreshold1 {
-		minTime = 1.0
+		minTime = 0.5
 	}
-	if timeSpent < minTime {
+	if float64(timeSpent) < minTime {
 		return false
 	}
 	// Минимальный процент для теста.

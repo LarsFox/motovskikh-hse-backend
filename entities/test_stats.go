@@ -5,10 +5,12 @@ import (
 )
 
 const (
-	secondsPerQuestionMin = 3
+	secondsPerQuestionMin = 2
 	secondsPerQuestionMax = 30
-	step                  = 5
-	interval              = 20
+	bucketsCount          = 20
+	percStep							= 5
+	smallTestThreshold1 = 7
+	smallTestThreshold2 = 15
 )
 
 // TestStats - статистика по тесту.
@@ -24,51 +26,13 @@ type TestStats struct {
 	MaxTimeSpent   int64                `json:"max_time_spent"`
 }
 
-// TestStatsResponse - статистика для ответа клиенту.
-type TestStatsResponse struct {
-	TestName      string    `json:"test_id"`
-	TotalAttempts int       `json:"total_attempts"`
-	AvgPercentage float64   `json:"avg_percentage"`
-	AvgTimeSpent  float64   `json:"avg_time_spent"`
-	UpdatedAt     time.Time `json:"updated_at"`
-}
-
 // NewTestStats создает новую статистику теста с инициализированными бакетами.
 func NewTestStats(testName string, questionCount int64) *TestStats {
 	stats := &TestStats{
 		TestName:  testName,
 		UpdatedAt: time.Now(),
 	}
-	stats.InitPercentBuckets()
-	stats.InitTimeBuckets(questionCount)
+	stats.initPercentBuckets()
+	stats.initTimeBuckets(questionCount)
 	return stats
-}
-
-// UpdateAverages обновляет средние значения.
-func (s *TestStats) UpdateAverages(percentage, timeSpent float64) {
-	oldTotal := float64(s.Attempts - 1)
-
-	if s.Attempts == 1 {
-		s.AvgPercentage = percentage
-		s.AvgTimeSpent = timeSpent
-	} else {
-		s.AvgPercentage = (s.AvgPercentage*oldTotal + percentage) / float64(s.Attempts)
-		s.AvgTimeSpent = (s.AvgTimeSpent*oldTotal + timeSpent) / float64(s.Attempts)
-	}
-}
-
-// UpdateMinMax обновляет минимальные и максимальные значения.
-func (s *TestStats) UpdateMinMax(timeSpent int64) {
-	if s.Attempts == 1 {
-		s.MinTimeSpent = timeSpent
-		s.MaxTimeSpent = timeSpent
-		return
-	}
-
-	if timeSpent < s.MinTimeSpent {
-		s.MinTimeSpent = timeSpent
-	}
-	if timeSpent > s.MaxTimeSpent {
-		s.MaxTimeSpent = timeSpent
-	}
 }

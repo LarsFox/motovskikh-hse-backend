@@ -20,13 +20,12 @@
 │   └── mocks/
 ├── manager/              		# Бизнес-логика (service layer)
 │   └── manager.go       		  # Основная логика
-│   └── calculations.go       # Вычисления
+│   └── calculations.go          # Вычисления
 │   └── submit.go       		  # Основной метод
-│   └── validation.go       	# Валидация
+│   └── validation.go       	  # Валидация
+│   └── updates.go       		  # Обновления БД
 ├── mysql/               		  # Работа с БД (data access layer)
 │   ├── client.go       		  # Клиент MySQL
 │   └── client_bucket.go 		  # Работа с бакетами и БД
-│   └── db_percent_bucket.go 	# Работа с бакетами результатов в БД
-│   └── db_time_bucket.go 		# Работа с бакетами времени в БД
 │   └── db_stats.go 		      # Работа со статистикой в БД
 └── doc.json            		  # Swagger документация
