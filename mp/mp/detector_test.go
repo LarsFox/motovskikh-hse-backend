@@ -5,7 +5,7 @@ import (
 )
 
 func TestDetector(t *testing.T) {
-	config, err := LoadConfigFromFile("../config.json")
+	config, err := loadConfigFromFile("../config.json")
 	if err != nil {
 		t.Fatalf("Error")
 	}
@@ -14,11 +14,11 @@ func TestDetector(t *testing.T) {
 
 	tests := []struct {
 		nick     string
-		expected bool // true - разрешен, false - запрещен
-	}{
-		// Запрещенные
+		expected bool // true - разрешен, false - запрещен.
+	} {
+		// Запрещенные.
 		{"suka", false},
-		{"pidaras", false},
+		{"pidàras", false},
 		{"ебанутыми", false},
 		{"обоссыш", false},
 		{"Это хуес", false},
@@ -48,11 +48,11 @@ func TestDetector(t *testing.T) {
 		{"zhe shi megahui", false},
 		{"уe64н", false},
 		{"россияхуйня", false},
-		{"пидоры себастьянчик", false},
+		{"пидоры хлебатить", false},
 		{"п-ид0ры с-еб4__с тьян чик", false},
 
 
-		// Разрешенные
+		// Разрешенные.
 		{"норм", true},
 		{"себастьян", true},
 		{"облако на небе", true},

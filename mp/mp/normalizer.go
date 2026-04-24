@@ -5,11 +5,6 @@ import (
 	"unicode"
 )
 
-// Normalizer интерфейс.
-type Normalizer interface {
-	Normalize(text string) string
-}
-
 // TextNormalizer - здесь мапы для нормализации.
 type TextNormalizer struct {
 	charReplacements map[string]string
@@ -21,6 +16,7 @@ type TextNormalizer struct {
 func NewTextNormalizer(config *Config) *TextNormalizer {
 	return &TextNormalizer{
 		charReplacements: config.CharReplacements,
+		translitMap: config.TranslitMap,
 		homoglyphs: map[rune]rune{
 			'a': 'а',
 			'e': 'е',
@@ -37,12 +33,11 @@ func NewTextNormalizer(config *Config) *TextNormalizer {
 			'i': 'и',
 			'l': 'л',
 		},
-		translitMap: config.TranslitMap,
 	}
 }
 
-// Normalize - нормализация ника.
-func (n *TextNormalizer) Normalize(text string) string {
+// normalize - нормализация ника.
+func (n *TextNormalizer) normalize(text string) string {
 	if text == "" {
 		return ""
 	}
@@ -54,7 +49,7 @@ func (n *TextNormalizer) Normalize(text string) string {
 	}
 
 	// Транслитерация.
-	text = n.LatToCyr(text)
+	text = n.latToCyr(text)
 
 	// Нормализация по homoglyph.
 	var builder strings.Builder
@@ -68,7 +63,8 @@ func (n *TextNormalizer) Normalize(text string) string {
 
 	// Оставляем только буквы.
 	clean := make([]rune, 0)
-	for _, r := range builder.String() {
+	normalized := builder.String()
+	for _, r := range normalized {
 		if unicode.IsLetter(r) {
 			clean = append(clean, r)
 		}
@@ -78,17 +74,18 @@ func (n *TextNormalizer) Normalize(text string) string {
 	return collapseRepeats(string(clean))
 }
 
-func (n *TextNormalizer) LatToCyr(text string) string {
-    result := text
-    for cyr, latVariants := range n.translitMap {
-        for _, lat := range latVariants {
-            result = strings.ReplaceAll(result, lat, cyr)
-        }
-    }
-    return result
+// latToCyr - замена в строке на русские символы.
+func (n *TextNormalizer) latToCyr(text string) string {
+	result := text
+	for cyr, latVariants := range n.translitMap {
+		for _, lat := range latVariants {
+			result = strings.ReplaceAll(result, lat, cyr)
+		}
+	}
+	return result
 }
 
-// Убираем повторения.
+// collapseRepeats - убирает из строки повторения символов (Пример: ааааа).
 func collapseRepeats(s string) string {
 	var result []rune
 	var prev rune

@@ -11,19 +11,20 @@ type Config struct {
 	CharReplacements map[string]string `json:"char_replacements"`
 
 	// Транслитерация.
-	TranslitMap map[string][]string `json:"translit_map"`
+	TranslitMap 		 map[string][]string `json:"translit_map"`
 
 	// Черный список слов.
-	Blacklist map[string]bool `json:"blacklist"`
+	Blacklist 			 map[string]bool `json:"blacklist"`
 
+	// Черный список корней.
 	RootBlacklist    []string `json:"root_blacklist"`
-
+	
 	// Белый список слов.
-	Whitelist []string `json:"whitelist"`
+	Whitelist 			 []string `json:"whitelist"`
 }
 
-// LoadConfigFromFile загружает конфигурацию из JSON файла.
-func LoadConfigFromFile(path string) (*Config, error) {
+// loadConfigFromFile загружает конфигурацию из JSON файла.
+func loadConfigFromFile(path string) (*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
