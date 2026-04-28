@@ -35,7 +35,6 @@ func (m *Manager) calculatePercentile(stats *entities.TestStats, percentage floa
 			if (currentKey == 100) {
 				worseAttempts += float64(count)
 			} else {
-				// Здесь делим пополам, потому что внутри бакета попытка не самая лучшая может быть.
 				worseAttempts += float64(float64(count) * offset)
 			}
 		}
