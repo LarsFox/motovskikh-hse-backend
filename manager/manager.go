@@ -8,7 +8,6 @@ import (
 type db interface {
 	GetStats(testName string) (*entities.TestStats, error)
 	SaveStats(bucket *entities.TestStats) error
-	GetOrCreateStats(testName string, questionCount int64) (*entities.TestStats, error)
 }
 
 type Manager struct {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"math"
 	"net/http"
 
 	"github.com/LarsFox/motovskikh-hse-backend/generated/models"
@@ -14,7 +15,6 @@ func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	result, err := m.manager.SubmitTestResult(
 		*req.TestName,
 		*req.Percentage,
@@ -26,5 +26,16 @@ func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m.send(w, result)
+	m.send(w, &models.SubmitTestResponse{
+		ScorePercentile:   float64(betterThan) / percentile,
+		TimePercentile:    float64(fasterThan) / percentile,
+		BetterThan:        betterThan,
+		FasterThan:        fasterThan,
+		AveragePercentage: math.Round(stats.AvgPercentage*roundMultiplier) / roundMultiplier,
+		AverageTime:       math.Round(stats.AvgTimeSpent*roundMultiplier) / roundMultiplier,
+		VsAverage: &models.TestAnalysisVsAverage{
+			PercentageDiff: math.Round(percentageDiff*roundMultiplier) / roundMultiplier,
+			TimeDiff:       math.Round(timeDiff*roundMultiplier) / roundMultiplier,
+		},
+	})
 }

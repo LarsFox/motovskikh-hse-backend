@@ -523,7 +523,8 @@ definitions:
         minimum: 0
         maximum: 100
       time_spent:
-        type: integer
+        type: number
+        format: double
         minimum: 1
       question_count:
         type: integer
@@ -532,48 +533,22 @@ definitions:
   SubmitTestResponse:
     type: object
     properties:
-      submitted:
-        type: boolean
-      analysis:
-        $ref: '#/definitions/TestAnalysis'
-  
-  TestAnalysis:
-    type: object
-    properties:
-      percentage:
+      score_percentile:
         type: number
-        x-omitempty: false
-      time_spent:
-        type: integer
-        x-omitempty: false
-      is_valid:
-        type: boolean
-        x-omitempty: false
-      percentile_rank:
-        type: number
-        x-omitempty: false
       time_percentile:
         type: number
-        x-omitempty: false
       better_than:
-        type: number
-        x-omitempty: false
+        type: integer
       faster_than:
-        type: number
-        x-omitempty: false
+        type: integer
       average_percentage:
         type: number
-        x-omitempty: false
       average_time:
         type: number
-        x-omitempty: false
       vs_average:
         type: object
-        x-omitempty: false
         properties:
           percentage_diff:
             type: number
-            x-omitempty: false
           time_diff:
             type: number
-            x-omitempty: false

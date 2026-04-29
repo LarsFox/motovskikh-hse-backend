@@ -37,7 +37,7 @@ func NewClient(cfg *Config) (*Client, error) {
 
 	// Автомиграция для всех таблиц.
 	err = db.AutoMigrate(
-		&dbTestStats{},
+		&testStats{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("dbs migrate err: %w", err)
@@ -47,7 +47,7 @@ func NewClient(cfg *Config) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dbs new client err: %w", err)
 	}
-	
+
 	// db = db.Debug()
 	d.SetMaxOpenConns(cfg.MaxConn)
 	return &Client{db: db}, nil
