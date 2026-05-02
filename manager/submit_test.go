@@ -2,7 +2,6 @@ package manager
 
 import (
 	"testing"
-
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,53 +19,44 @@ func TestSubmitTestResult_Success(t *testing.T) {
 
 	testName := "europe"
 	percentage := 75.0
-	timeSpent := int64(180)
+	timeSpent := float64(180)
 	questionCount := int64(30)
 
-	testStats := &entities.TestStats{
-		TestName:      testName,
-		Attempts:      100,
-		AvgPercentage: 65.0,
-		AvgTimeSpent:  200,
-		PercentDistrib: &entities.PercentDistribution{
-			Buckets: map[float64]uint64{
-				0:  10,
-				20: 20,
-				40: 30,
-				60: 25,
-				80: 15,
-			},
-		},
-		TimeDistrib: &entities.TimeDistribution{
-			Buckets: []entities.TimeBucket{
-				{MinSeconds: 0, MaxSeconds: 60, Count: 30},
-				{MinSeconds: 60, MaxSeconds: 120, Count: 30},
-				{MinSeconds: 120, MaxSeconds: 180, Count: 20},
-				{MinSeconds: 180, MaxSeconds: 240, Count: 10},
-				{MinSeconds: 240, MaxSeconds: 300, Count: 5},
-				{MinSeconds: 300, MaxSeconds: 360, Count: 3},
-				{MinSeconds: 360, MaxSeconds: -1, Count: 2},
-			},
-		},
-	}
+	stats := &entities.TestStats{
+	Name:          testName,
+	Attempts:      23,
+	AvgPercentage: 71.0,
+	AvgTimeSpent:  130.0,
+	PercentBuckets: []*entities.TestStatsBucket{
+		{Value: 70, Count: 10},
+		{Value: 75, Count: 8},
+		{Value: 80, Count: 5},
+	},
+	TimeBuckets: []*entities.TestStatsBucket{
+		{Value: 60, Count: 5},
+		{Value: 120, Count: 10},
+		{Value: 180, Count: 5},
+		{Value: 240, Count: 3},
+	},
+}
 
 	mockDB.EXPECT().
-		GetOrCreateStats(testName, questionCount).
-		Return(testStats, nil)
+		GetStats(gomock.Any(), testName).
+		Return(stats, nil)
 
 	mockDB.EXPECT().
-		SaveStats(gomock.Any()).
+		SaveStats(gomock.Any(), gomock.Any()).
 		Return(nil)
 
 	result, err := mgr.SubmitTestResult(testName, percentage, timeSpent, questionCount)
 
 	require.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.True(t, result["submitted"].(bool))
+	require.NotNil(t, result)
 
-	analysis := result["analysis"].(map[string]any)
-	assert.InDelta(t, 75.0, analysis["percentage"], 0.001)
-	assert.Equal(t, int64(180), analysis["time_spent"])
+	assert.InDelta(t, 43.5, result.ScorePercentile, 1)
+	assert.Equal(t, int64(8), result.FasterThan)
+	assert.NotZero(t, result.AveragePercentage)
+	assert.NotZero(t, result.AverageTime)
 }
 
 func TestSubmitTestResult_InvalidAttempt(t *testing.T) {
@@ -78,27 +68,93 @@ func TestSubmitTestResult_InvalidAttempt(t *testing.T) {
 
 	testName := "europe"
 	percentage := 3.0
-	timeSpent := int64(30)
+	timeSpent := float64(30)
 	questionCount := int64(30)
 
-	testStats := &entities.TestStats{
-		TestName: testName,
-		Attempts: 0,
-	}
+	result, err := mgr.SubmitTestResult(testName, percentage, timeSpent, questionCount)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestSubmitTestResult_CreateNewStats(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockDB := mocks.NewMockdb(ctrl)
+	mgr := New(mockDB)
+
+	testName := "new-test"
+	percentage := 60.0
+	timeSpent := float64(150)
+	questionCount := int64(20)
 
 	mockDB.EXPECT().
-		GetOrCreateStats(testName, questionCount).
-		Return(testStats, nil)
+		GetStats(gomock.Any(), testName).
+		Return(nil, entities.ErrNotFound)
 
 	mockDB.EXPECT().
-		SaveStats(gomock.Any()).
+		SaveStats(gomock.Any(), gomock.Any()).
 		Return(nil)
 
 	result, err := mgr.SubmitTestResult(testName, percentage, timeSpent, questionCount)
 
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NotNil(t, result)
 
-	analysis := result["analysis"].(map[string]any)
-	assert.Equal(t, false, analysis["is_valid"])
+	assert.NotZero(t, result.AveragePercentage)
+	assert.NotZero(t, result.AverageTime)
+}
+
+func TestSubmitTestResult_InvalidAttempt_NewTest(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockDB := mocks.NewMockdb(ctrl)
+	mgr := New(mockDB)
+
+	testName := "new-test"
+	percentage := 1.0
+	timeSpent := float64(10)
+	questionCount := int64(20)
+
+	result, err := mgr.SubmitTestResult(testName, percentage, timeSpent, questionCount)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestSubmitTestResult_AttemptsIncrement(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockDB := mocks.NewMockdb(ctrl)
+	mgr := New(mockDB)
+
+	testName := "europe"
+
+	stats := &entities.TestStats{
+		Name:     testName,
+		Attempts: 5,
+		PercentBuckets: []*entities.TestStatsBucket{
+			{Value: 50, Count: 1},
+		},
+		TimeBuckets: []*entities.TestStatsBucket{
+			{Value: 100, Count: 1},
+		},
+	}
+
+	mockDB.EXPECT().
+		GetStats(gomock.Any(), testName).
+		Return(stats, nil)
+
+	mockDB.EXPECT().
+		SaveStats(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ interface{}, s *entities.TestStats) error {
+			assert.Equal(t, int64(6), s.Attempts)
+			return nil
+		})
+
+	_, err := mgr.SubmitTestResult(testName, 60, 120, 10)
+	require.NoError(t, err)
 }

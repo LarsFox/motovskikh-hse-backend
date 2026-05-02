@@ -1,13 +1,15 @@
 package manager
 
 import (
+	"context"
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
 //go:generate mockgen -source=manager.go -destination=../generated/mocks/db.go -package=mocks
 type db interface {
-	GetStats(testName string) (*entities.TestStats, error)
-	SaveStats(bucket *entities.TestStats) error
+	GetStats(ctx context.Context, testName string) (*entities.TestStats, error)
+	SaveStats(ctx context.Context, stats *entities.TestStats) error
+	Stub() bool
 }
 
 type Manager struct {
@@ -16,4 +18,8 @@ type Manager struct {
 
 func New(db db) *Manager {
 	return &Manager{db: db}
+}
+
+func (m *Manager) Stub() bool {
+	return m.db.Stub()
 }

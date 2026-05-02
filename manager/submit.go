@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math"
 	"time"
+	"context"
 
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
-	"github.com/LarsFox/motovskikh-hse-backend/generated/models"
 )
 
 const (
@@ -21,6 +21,11 @@ const (
 
 	secondsPerQuestionMin = 2
 	secondsPerQuestionMax = 30
+
+	verySmallTestMinTime = 0.5
+	SmallTestMinTime 		 = 1
+
+	defaultPercentile = 100.0
 )
 
 // SubmitTestResult сохраняет результат теста и возвращает анализ.
@@ -28,77 +33,96 @@ const (
 // TODO questionCount с фронта??
 func (m *Manager) SubmitTestResult(testName string, percentage, timeSpent float64, questionCount int64) (*entities.TestStatsAnalysis, error) {
 	// Валидация.
-	isValid := m.validateAttempt(testName, percentage, timeSpent, questionCount)
-	if isValid {
+	if !m.validateAttempt(testName, percentage, timeSpent, questionCount) {
 		return nil, entities.ErrInvalidInput
 	}
-
+	ctx := context.Background()
 	// Получаем текущий бакет.
-	stats, err := m.db.GetStats(testName)
+	stats, err := m.db.GetStats(ctx, testName)
 	switch {
 	case errors.Is(err, nil):
 	case errors.Is(err, entities.ErrNotFound):
 		stats = &entities.TestStats{
 			Name:           testName,
-			PercentBuckets: make([]*entities.TestStatsBucket, 0, bucketsCount),
 			UpdatedAt:      time.Now(),
+			PercentBuckets: make([]*entities.TestStatsBucket, 0, bucketsCount),
 		}
 
 		// Инициализируем интервалы от 0 до 100 с шагом.
-		for i := range bucketsCount {
+		for i := 0; i < bucketsCount; i++ {
 			stats.PercentBuckets = append(stats.PercentBuckets, &entities.TestStatsBucket{
 				Value: float64((i + 1) * bucketsStep),
 				Count: 0,
 			})
-
-			stats.TimeBuckets = makeTimeBuckets(questionCount)
 		}
+		stats.TimeBuckets = makeTimeBuckets(questionCount)
 
 	default:
 		return nil, fmt.Errorf("failed to get stats: %w", err)
 	}
 
+	oldAttempts := stats.Attempts
+
+	// Кол-во попыток, которые обошел пользователь.
+	betterThan := countPercentile(stats.PercentBuckets, percentage, stats.Attempts, false)
+	fasterThan := stats.Attempts - countPercentile(stats.TimeBuckets, timeSpent, stats.Attempts, true)
+
+	// Считаем перцентиль через это количество попыток и общее.
+	var scorePercentile float64
+	var timePercentile float64
+
+	if oldAttempts > 0 {
+		scorePercentile = float64(betterThan * 100) / float64(oldAttempts)
+		timePercentile = float64(fasterThan * 100) / float64(oldAttempts)
+	} else {
+		scorePercentile = defaultPercentile
+		timePercentile = defaultPercentile
+	}
+
+
+	// Разница между средними показателями.
+	percentageDiff := percentage - stats.AvgPercentage
+	timeDiff := timeSpent - stats.AvgTimeSpent
+
 	// Обновляем бакет.
 	stats.Attempts++
 	incrementBucket(stats.PercentBuckets, percentage)
 	incrementBucket(stats.TimeBuckets, timeSpent)
-	updateAverages(stats, percentage, float64(timeSpent))
+	updateAverages(stats, percentage, timeSpent)
 	updateMinMax(stats, timeSpent)
 
 	// Сохраняем бакет.
-	if err := m.db.SaveStats(stats); err != nil {
+	if err := m.db.SaveStats(ctx, stats); err != nil {
 		return nil, fmt.Errorf("failed to save stats: %w", err)
 	}
 
-	betterThan := countPercentile(stats.PercentBuckets, percentage, stats.Attempts)
-	fasterThan := stats.Attempts - countPercentile(stats.TimeBuckets, timeSpent, stats.Attempts)
-	percentile := float64(stats.Attempts)
+	// Здесь округляем до знака после запятой.
+	scorePercentile = math.Round(scorePercentile*roundMultiplier) / roundMultiplier
+	timePercentile = math.Round(timePercentile*roundMultiplier) / roundMultiplier
 
-	percentageDiff := percentage - stats.AvgPercentage
-	timeDiff := float64(timeSpent) - stats.AvgTimeSpent
+	percentageDiff = math.Round(percentageDiff*roundMultiplier) / roundMultiplier
+	timeDiff = math.Round(timeDiff*roundMultiplier) / roundMultiplier
 
 	// Формируем ответ.
 	return &entities.TestStatsAnalysis{
-		ScorePercentile:   float64(betterThan) / percentile,
-		TimePercentile:    float64(fasterThan) / percentile,
+		ScorePercentile:   scorePercentile,
+		TimePercentile:    timePercentile,
 		BetterThan:        betterThan,
 		FasterThan:        fasterThan,
 		AveragePercentage: math.Round(stats.AvgPercentage*roundMultiplier) / roundMultiplier,
 		AverageTime:       math.Round(stats.AvgTimeSpent*roundMultiplier) / roundMultiplier,
-		VsAverage: &models.TestAnalysisVsAverage{
-			PercentageDiff: math.Round(percentageDiff*roundMultiplier) / roundMultiplier,
-			TimeDiff:       math.Round(timeDiff*roundMultiplier) / roundMultiplier,
-		},
+		PercentageDiff:    percentageDiff,
+		TimeDiff:          timeDiff,
 	}, nil
 }
 
 func getBucketMinTime(questions int64) float64 {
 	if questions < timeLimitTiny {
-		return 0.5 // TODO consts
+		return verySmallTestMinTime
 	}
 
 	if questions < timeLimitSmall {
-		return 1
+		return SmallTestMinTime
 	}
 
 	return secondsPerQuestionMin
@@ -113,15 +137,11 @@ func makeTimeBuckets(questionCount int64) []*entities.TestStatsBucket {
 	step := (maxTime - minTime) / bucketsCount
 
 	result := make([]*entities.TestStatsBucket, 0, bucketsCount)
-	result = append(result, &entities.TestStatsBucket{
-		Value: 0,
-		Count: 0,
-	})
 
-	for i := range bucketsCount - 1 {
+	for i := range bucketsCount {
 		minSeconds := minTime + float64(i)*step
 		result = append(result, &entities.TestStatsBucket{
-			Value: minSeconds,
+			Value: math.Round(minSeconds*100) / 100,
 			Count: 0,
 		})
 	}
@@ -129,7 +149,15 @@ func makeTimeBuckets(questionCount int64) []*entities.TestStatsBucket {
 	return result
 }
 
-func countPercentile(buckets []*entities.TestStatsBucket, value float64, max int64) int64 {
+func countPercentile(buckets []*entities.TestStatsBucket, value float64, max int64, isTime bool) int64 {
+	if len(buckets) == 0 {
+		return 0
+	}
+
+	if value <= buckets[0].Value {
+		return 0
+	}
+
 	if value >= buckets[len(buckets)-1].Value {
 		return max
 	}
@@ -141,9 +169,24 @@ func countPercentile(buckets []*entities.TestStatsBucket, value float64, max int
 			continue
 		}
 
-		extra := value - bucket.Value
+		if i == len(buckets)-1 {
+			total += bucket.Count
+			break
+		}
+
+		extra := bucket.Value - value
 		size := buckets[i+1].Value - bucket.Value
-		total += int64(extra / size)
+
+		if size <= 0 {
+			break
+		}
+
+		fraction := extra / size
+		if (isTime) {
+			total += int64((1-fraction) * float64(bucket.Count))
+		} else {
+			total += int64(fraction * float64(bucket.Count))
+		}
 		break
 	}
 
@@ -151,5 +194,12 @@ func countPercentile(buckets []*entities.TestStatsBucket, value float64, max int
 }
 
 func incrementBucket(buckets []*entities.TestStatsBucket, value float64) {
-	// TODO
+	for i, bucket := range buckets {
+		if value <= bucket.Value {
+			buckets[i].Count++
+			return
+		}
+	}
+	// Увеличиваем последний.
+	buckets[len(buckets)-1].Count++
 }

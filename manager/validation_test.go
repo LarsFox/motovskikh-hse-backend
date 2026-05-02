@@ -13,8 +13,8 @@ func TestValidateAttempt_WithTest(t *testing.T) {
 		name          string
 		testName      string
 		percentage    float64
-		timeSpent     int
-		questionCount int
+		timeSpent     float64
+		questionCount int64
 		expectValid   bool
 	}{
 		{
@@ -42,7 +42,7 @@ func TestValidateAttempt_WithTest(t *testing.T) {
 			expectValid:   false,
 		},
 		{
-			name:          "small test higher threshold",
+			name:          "small test lower boundary",
 			testName:      "small",
 			percentage:    8,
 			timeSpent:     60,
@@ -53,7 +53,13 @@ func TestValidateAttempt_WithTest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid := m.validateAttempt(tt.testName, tt.percentage, int64(tt.timeSpent), int64(tt.questionCount))
+			valid := m.validateAttempt(
+				tt.testName,
+				tt.percentage,
+				tt.timeSpent,
+				tt.questionCount,
+			)
+
 			assert.Equal(t, tt.expectValid, valid)
 		})
 	}

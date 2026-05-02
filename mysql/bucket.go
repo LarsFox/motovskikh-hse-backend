@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"encoding/json"
 
 	"gorm.io/gorm"
 
@@ -14,7 +15,7 @@ import (
 // GetStats получает статистику по имени теста.
 func (c *Client) GetStats(ctx context.Context, testName string) (*entities.TestStats, error) {
 	dbStats := &testStats{}
-	err := c.db.WithContext(ctx).Where("test_name = ?", testName).First(dbStats).Error
+	err := c.db.WithContext(ctx).Where("name = ?", testName).First(dbStats).Error
 	switch {
 	case errors.Is(err, nil):
 	case errors.Is(err, gorm.ErrRecordNotFound):
@@ -33,22 +34,49 @@ func (c *Client) GetStats(ctx context.Context, testName string) (*entities.TestS
 		MaxTimeSpent:  dbStats.MaxTimeSpent,
 	}
 
+	// Бакеты процентов.
+	if len(dbStats.PercentDistrib) > 0 {
+		if err := json.Unmarshal(dbStats.PercentDistrib, &stats.PercentBuckets); err != nil {
+			return nil, fmt.Errorf("unmarshal percent buckets err: %w", err)
+		}
+	}
+
+	// Бакеты времени.
+	if len(dbStats.TimeDistrib) > 0 {
+		if err := json.Unmarshal(dbStats.TimeDistrib, &stats.TimeBuckets); err != nil {
+			return nil, fmt.Errorf("unmarshal time buckets err: %w", err)
+		}
+	}
+
 	return stats, nil
 }
 
 // SaveStats сохраняет статистику.
 func (c *Client) SaveStats(ctx context.Context, stats *entities.TestStats) error {
+	percentDistrib, err := json.Marshal(stats.PercentBuckets)
+	if err != nil {
+		return fmt.Errorf("marshal percent buckets err: %w", err)
+	}
+
+	timeDistrib, err := json.Marshal(stats.TimeBuckets)
+	if err != nil {
+		return fmt.Errorf("marshal time buckets err: %w", err)
+	}
+
 	dbStats := &testStats{
 		Name:          stats.Name,
 		UpdatedAt:     time.Now(),
 		Attempts:      stats.Attempts,
+		PercentDistrib: percentDistrib,
+		TimeDistrib:    timeDistrib,
 		AvgPercentage: stats.AvgPercentage,
 		AvgTimeSpent:  stats.AvgTimeSpent,
 		MinTimeSpent:  stats.MinTimeSpent,
 		MaxTimeSpent:  stats.MaxTimeSpent,
 	}
 
-	if err := c.db.WithContext(ctx).Save(dbStats).Error; err != nil {
+	err = c.db.WithContext(ctx).Save(dbStats).Error
+	if err != nil {
 		return fmt.Errorf("save test stats err: %w", err)
 	}
 

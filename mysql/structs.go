@@ -6,7 +6,7 @@ import (
 )
 
 type testStats struct {
-	Name           string // TODO: foreign key validation.
+	Name           string 		`gorm:"primaryKey"`
 	UpdatedAt      time.Time
 	Attempts       int64
 	PercentDistrib json.RawMessage

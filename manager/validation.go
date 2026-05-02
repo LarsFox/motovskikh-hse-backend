@@ -23,7 +23,7 @@ func (m *Manager) validateAttempt(_ string, percentage, timeSpent float64, quest
 	if questionCount < smallTestThresholdTime {
 		minTime = 0.5
 	}
-	if float64(timeSpent) < minTime {
+	if timeSpent < minTime {
 		return false
 	}
 

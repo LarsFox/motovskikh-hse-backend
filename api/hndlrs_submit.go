@@ -1,11 +1,12 @@
 package api
 
 import (
-	"math"
 	"net/http"
 
 	"github.com/LarsFox/motovskikh-hse-backend/generated/models"
 )
+
+const roundMultiplier = 10
 
 func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 	var req models.SubmitTestRequest
@@ -15,7 +16,7 @@ func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := m.manager.SubmitTestResult(
+	analysis, err := m.manager.SubmitTestResult(
 		*req.TestName,
 		*req.Percentage,
 		*req.TimeSpent,
@@ -27,15 +28,15 @@ func (m *Manager) hndlrSubmitTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.send(w, &models.SubmitTestResponse{
-		ScorePercentile:   float64(betterThan) / percentile,
-		TimePercentile:    float64(fasterThan) / percentile,
-		BetterThan:        betterThan,
-		FasterThan:        fasterThan,
-		AveragePercentage: math.Round(stats.AvgPercentage*roundMultiplier) / roundMultiplier,
-		AverageTime:       math.Round(stats.AvgTimeSpent*roundMultiplier) / roundMultiplier,
-		VsAverage: &models.TestAnalysisVsAverage{
-			PercentageDiff: math.Round(percentageDiff*roundMultiplier) / roundMultiplier,
-			TimeDiff:       math.Round(timeDiff*roundMultiplier) / roundMultiplier,
+		ScorePercentile:   analysis.ScorePercentile,
+		TimePercentile:    analysis.TimePercentile,
+		BetterThan:        analysis.BetterThan,
+		FasterThan:        analysis.FasterThan,
+		AveragePercentage: analysis.AveragePercentage,
+		AverageTime:       analysis.AverageTime,
+		VsAverage: &models.SubmitTestResponseVsAverage{
+			PercentageDiff: analysis.PercentageDiff,
+			TimeDiff:       analysis.TimeDiff,
 		},
 	})
 }

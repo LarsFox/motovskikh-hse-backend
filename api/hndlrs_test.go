@@ -32,7 +32,7 @@ func TestHndlrSubmitTest(t *testing.T) {
 	}
 	testName := "europe"
 	percentage := 75.0
-	timeSpent := int64(180)
+	timeSpent := float64(180)
 	questionCount := int64(30)
 
 	reqBody := models.SubmitTestRequest{
@@ -44,31 +44,34 @@ func TestHndlrSubmitTest(t *testing.T) {
 	body, err := json.Marshal(reqBody)
 	require.NoError(t, err)
 
-	// Ожидаем вызов GetOrCreateStats.
-	mockDB.EXPECT().
-		GetOrCreateStats("europe", int64(30)).
-		Return(&entities.TestStats{
-			TestName:      "europe",
-			Attempts:      100,
-			AvgPercentage: 65.0,
-			AvgTimeSpent:  200,
-			PercentDistrib: &entities.PercentDistribution{
-				Buckets: map[float64]uint64{
-					70: 10,
-					75: 8,
-				},
-			},
-			TimeDistrib: &entities.TimeDistribution{
-				Buckets: []entities.TimeBucket{
-					{MinSeconds: 120, MaxSeconds: 180, Count: 20},
-					{MinSeconds: 180, MaxSeconds: 240, Count: 10},
-				},
-			},
-		}, nil)
+	stats := &entities.TestStats{
+		Name:          "europe",
+		Attempts:      100,
+		AvgPercentage: 65.0,
+		AvgTimeSpent:  200.0,
+		MinTimeSpent:  60.0,
+		MaxTimeSpent:  400.0,
+		PercentBuckets: []*entities.TestStatsBucket{
+			{Value: 70, Count: 10},
+			{Value: 75, Count: 8},
+		},
+		TimeBuckets: []*entities.TestStatsBucket{
+			{Value: 60, Count: 30},
+			{Value: 120, Count: 30},
+			{Value: 180, Count: 20},
+			{Value: 240, Count: 10},
+			{Value: 300, Count: 5},
+		},
+	}
 
-	// Ожидаем вызов SaveStats.
+	statsCopy := *stats
 	mockDB.EXPECT().
-		SaveStats(gomock.Any()).
+		GetStats(gomock.Any(), "europe").
+		Return(&statsCopy, nil)
+
+	// Expect SaveStats call
+	mockDB.EXPECT().
+		SaveStats(gomock.Any(), gomock.Any()).
 		Return(nil)
 
 	req := httptest.NewRequestWithContext(context.Background(), "POST", "/tests/submit/", bytes.NewReader(body))
@@ -86,7 +89,17 @@ func TestHndlrSubmitTest(t *testing.T) {
 	assert.True(t, response["ok"].(bool))
 
 	result := response["result"].(map[string]any)
-	analysis, ok := result["analysis"].(map[string]any)
-	assert.True(t, ok)
-	assert.InDelta(t, 75.0, analysis["percentage"], 0.001)
+
+	assert.Contains(t, result, "score_percentile")
+	assert.Contains(t, result, "time_percentile")
+	assert.Contains(t, result, "better_than")
+	assert.Contains(t, result, "faster_than")
+	assert.Contains(t, result, "average_percentage")
+	assert.Contains(t, result, "average_time")
+	assert.Contains(t, result, "vs_average")
+	
+	if vsAverage, ok := result["vs_average"].(map[string]any); ok {
+		assert.Contains(t, vsAverage, "percentage_diff")
+		assert.Contains(t, vsAverage, "time_diff")
+	}
 }

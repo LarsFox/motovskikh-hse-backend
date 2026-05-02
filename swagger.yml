@@ -535,20 +535,29 @@ definitions:
     properties:
       score_percentile:
         type: number
+        x-omitempty: false
       time_percentile:
         type: number
+        x-omitempty: false
       better_than:
         type: integer
+        x-omitempty: false
       faster_than:
         type: integer
+        x-omitempty: false
       average_percentage:
         type: number
+        x-omitempty: false
       average_time:
         type: number
+        x-omitempty: false
       vs_average:
         type: object
+        x-omitempty: false
         properties:
           percentage_diff:
             type: number
+            x-omitempty: false
           time_diff:
             type: number
+            x-omitempty: false

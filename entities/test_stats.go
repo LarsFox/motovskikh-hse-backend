@@ -27,7 +27,14 @@ type TestStats struct {
 }
 
 type TestStatsAnalysis struct {
-	// TODO: implement
+	ScorePercentile   float64
+	TimePercentile    float64
+	BetterThan        int64
+	FasterThan        int64
+	AveragePercentage float64
+	AverageTime       float64
+	PercentageDiff float64
+	TimeDiff       float64
 }
 
 type TestStatsBucket struct {

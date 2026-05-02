@@ -6,14 +6,12 @@ import (
 
 // UpdateAverages обновляет средние значения.
 func updateAverages(s *entities.TestStats, percentage, timeSpent float64) {
-	oldTotal := float64(s.Attempts - 1)
-	if s.Attempts == 1 {
-		s.AvgPercentage = percentage
-		s.AvgTimeSpent = timeSpent
-	} else {
-		s.AvgPercentage = (s.AvgPercentage*oldTotal + percentage) / float64(s.Attempts)
-		s.AvgTimeSpent = (s.AvgTimeSpent*oldTotal + timeSpent) / float64(s.Attempts)
+	n := float64(s.Attempts)
+	if n == 0 {
+		return
 	}
+	s.AvgPercentage = ((s.AvgPercentage * (n - 1)) + percentage) / n
+	s.AvgTimeSpent = ((s.AvgTimeSpent * (n - 1)) + timeSpent) / n
 }
 
 // UpdateMinMax обновляет минимальные и максимальные значения.
