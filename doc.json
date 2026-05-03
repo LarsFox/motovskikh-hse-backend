@@ -1,0 +1,70 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Motovskikh Tests API",
+    "description": "API для системы трекинга рекордов",
+    "version": "2.0.0"
+  },
+  "host": "localhost:8080",
+  "basePath": "/",
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "paths": {
+    "/tests/submit/": {
+      "post": {
+        "summary": "Отправить результаты и получить анализ",
+        "description": "Отправляем результаты теста и получаем аналих",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+              "test_name": {"type": "string"},
+              "percentage": {"type": "number", "format": "float"},
+              "time_spent": {"type": "integer"},
+              "question_count": {"type": "integer"}
+          },
+          "required": ["test_name", "percentage", "time_spent", "question_count"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результат теста с анализом",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ok": {"type": "boolean", "example": true},
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "attempt_id": {"type": "string"},
+                    "submitted": {"type": "boolean"},
+                    "validation_message": {"type": "string"},
+                    "analysis": {"type": "object"}
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Неверные параметры",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ok": {"type": "boolean"},
+                "error": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

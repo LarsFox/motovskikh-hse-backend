@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 )
@@ -56,6 +57,15 @@ func NewManager(manager *manager.Manager) *Manager {
 
 	m.addRoutes()
 
+	// Swagger
+	swaggerHandler := httpSwagger.Handler(
+		httpSwagger.URL("doc.json"),
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+		httpSwagger.DomID("swagger-ui"),
+	)
+
+	m.router.PathPrefix("/swagger/").Handler(swaggerHandler)
 	return m
 }
 
@@ -76,9 +86,17 @@ func (m *Manager) Listen(addr string) error {
 
 func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
-		routeGet("/stub/get/", m.hndlrStubGet),
-		routePost("/stub/post/", m.hndlrStubPost, m.wrapContentTypeJSON),
+		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON), // После окончания теста получить анализ.
 	})
+	m.router.HandleFunc("/doc.json", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./doc.json")
+	})
+
+	// Swagger UI
+	m.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("/doc.json"),
+	))
+	log.Println("Routes registered")
 }
 
 // addHandlers добавляет пути и обработчики запросов в мультиплексор (mux).
@@ -97,11 +115,11 @@ func (m *Manager) addHandlers(routes []route) {
 }
 
 // send responds with a success.
-func (m *Manager) send(w http.ResponseWriter, data interface{}) {
+func (m *Manager) send(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"ok":     true,
 		"result": data,
 	}
