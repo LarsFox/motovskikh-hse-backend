@@ -1,112 +1,56 @@
 package repository
 
 import (
-	"coursework/internal/models"
-	"database/sql"
 	"fmt"
+
+	"github.com/LarsFox/motovskikh-hse-backend/internal/models"
+	"gorm.io/gorm"
 )
 
-type MySQLUserRepository struct {
-	db *sql.DB
+// userRepository — реализация UserRepository через GORM
+type userRepository struct {
+	db *gorm.DB
 }
 
-func NewMySQLUserRepository(db *sql.DB) *MySQLUserRepository {
-	return &MySQLUserRepository{db: db}
-}
-
-func (r *MySQLUserRepository) Create(user *models.User) error {
-	query := `
-		INSERT INTO users (email, login, password_hash, email_verified)
-		VALUES (?, ?, ?, ?)
-	`
-	result, err := r.db.Exec(query, user.Email, user.Login, user.PasswordHash, user.EmailVerified)
-	if err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get last insert id: %w", err)
-	}
-
-	user.ID = int(id)
-	return nil
-}
-
-func (r *MySQLUserRepository) GetByEmail(email string) (*models.User, error) {
-	query := `
-		SELECT id, email, login, password_hash, email_verified, created_at, updated_at
-		FROM users
-		WHERE email = ?
-	`
-	user := &models.User{}
-	err := r.db.QueryRow(query, email).Scan(
-		&user.ID, &user.Email, &user.Login, &user.PasswordHash,
-		&user.EmailVerified, &user.CreatedAt, &user.UpdatedAt,
-	)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
-	}
-	return user, nil
-}
-
-func (r *MySQLUserRepository) GetByLogin(login string) (*models.User, error) {
-	query := `
-		SELECT id, email, login, password_hash, email_verified, created_at, updated_at
-		FROM users
-		WHERE login = ?
-	`
-	user := &models.User{}
-	err := r.db.QueryRow(query, login).Scan(
-		&user.ID, &user.Email, &user.Login, &user.PasswordHash,
-		&user.EmailVerified, &user.CreatedAt, &user.UpdatedAt,
-	)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
-	}
-	return user, nil
-}
-
-func (r *MySQLUserRepository) GetByID(id int) (*models.User, error) {
-	query := `
-		SELECT id, email, login, password_hash, email_verified, created_at, updated_at
-		FROM users
-		WHERE id = ?
-	`
-	user := &models.User{}
-	err := r.db.QueryRow(query, id).Scan(
-		&user.ID, &user.Email, &user.Login, &user.PasswordHash,
-		&user.EmailVerified, &user.CreatedAt, &user.UpdatedAt,
-	)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
-	}
-	return user, nil
-}
-
-func (r *MySQLUserRepository) UpdateEmailVerified(userID int, verified bool) error {
-	query := `UPDATE users SET email_verified = ? WHERE id = ?`
-	_, err := r.db.Exec(query, verified, userID)
-	if err != nil {
-		return fmt.Errorf("failed to update email_verified: %w", err)
+// Create создаёт нового пользователя в БД
+func (r *userRepository) Create(user *models.User) error {
+	if err := r.db.Create(user).Error; err != nil {
+		return fmt.Errorf("create user: %w", err)
 	}
 	return nil
 }
 
-func (r *MySQLUserRepository) UpdatePassword(userID int, passwordHash string) error {
-	query := `UPDATE users SET password_hash = ? WHERE id = ?`
-	_, err := r.db.Exec(query, passwordHash, userID)
+// GetByEmail ищет пользователя по email
+func (r *userRepository) GetByEmail(email string) (*models.User, error) {
+	var user models.User
+	err := r.db.Where("email = ?", email).First(&user).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("user not found")
+	}
 	if err != nil {
-		return fmt.Errorf("failed to update password: %w", err)
+		return nil, fmt.Errorf("get user by email: %w", err)
+	}
+	return &user, nil
+}
+
+// UpdateEmailVerified обновляет статус подтверждения email
+func (r *userRepository) UpdateEmailVerified(userID uint, verified bool) error {
+	err := r.db.Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("email_verified", verified).Error
+	if err != nil {
+		return fmt.Errorf("update email verified: %w", err)
+	}
+	return nil
+}
+
+// UpdatePassword обновляет хеш пароля пользователя
+func (r *userRepository) UpdatePassword(userID uint, passwordHash string) error {
+	err := r.db.Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("password_hash", passwordHash).Error
+	if err != nil {
+		return fmt.Errorf("update password: %w", err)
 	}
 	return nil
 }
