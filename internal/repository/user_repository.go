@@ -1,14 +1,18 @@
 package repository
 
 import (
-	"coursework/internal/models"
+	"github.com/LarsFox/motovskikh-hse-backend/internal/models"
+	"gorm.io/gorm"
 )
 
 type UserRepository interface {
 	Create(user *models.User) error
 	GetByEmail(email string) (*models.User, error)
-	GetByLogin(login string) (*models.User, error)
-	GetByID(id int) (*models.User, error)
-	UpdateEmailVerified(userID int, verified bool) error
-	UpdatePassword(userID int, passwordHash string) error
+	UpdateEmailVerified(userID uint, verified bool) error
+	UpdatePassword(userID uint, passwordHash string) error
+}
+
+// NewUserRepository создаёт новый репозиторий пользователей.
+func NewUserRepository(db *gorm.DB) UserRepository {
+	return &userRepository{db: db}
 }
