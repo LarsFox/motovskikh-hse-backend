@@ -3,18 +3,16 @@ package models
 import "time"
 
 type User struct {
-	ID            int       `json:"id"`
-	Email         string    `json:"email"`
-	Login         string    `json:"login"`
-	PasswordHash  string    `json:"-"` // не отправляю в JSON (!)
-	EmailVerified bool      `json:"email_verified"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Email         string    `gorm:"uniqueIndex;not null"     json:"email"`
+	PasswordHash  string    `gorm:"not null"                 json:"-"`
+	EmailVerified bool      `gorm:"default:false"            json:"email_verified"`
+	CreatedAt     time.Time `gorm:"autoCreateTime"           json:"created_at"`
+	UpdatedAt     time.Time `gorm:"autoUpdateTime"           json:"updated_at"`
 }
 
 type CreateUserRequest struct {
 	Email    string `json:"email"`
-	Login    string `json:"login"`
 	Password string `json:"password"`
 }
 
