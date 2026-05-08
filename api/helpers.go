@@ -59,7 +59,7 @@ func notifyRecover(meta ...map[string]any) {
 	notify(err, meta...)
 }
 
-// unmarshalParams парсит входящие в методы API параметры и валидирует их.
+// парсит входящие в методы API параметры и валидирует их
 func unmarshalParams(r *http.Request, prms runtime.Validatable) error {
 	if err := json.NewDecoder(r.Body).Decode(prms); err != nil {
 		return err
@@ -75,3 +75,4 @@ func unmarshalParams(r *http.Request, prms runtime.Validatable) error {
 
 	return nil
 }
+

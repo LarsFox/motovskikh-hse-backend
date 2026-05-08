@@ -25,8 +25,7 @@ func (m *Manager) wrapBodyMaxSize(inner http.Handler) http.Handler {
 	})
 }
 
-// wrapEasterEggHeader добавляет ржомбу в заголовки.
-// nolint:canonicalheader
+
 func (m *Manager) wrapEasterEggHeader(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("hey", "what are you trying to find here")
@@ -36,7 +35,7 @@ func (m *Manager) wrapEasterEggHeader(inner http.Handler) http.Handler {
 	})
 }
 
-// wrapRecover отправляет ошибку.
+
 func wrapRecover(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer notifyRecover(map[string]any{"uri": r.RequestURI})

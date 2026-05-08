@@ -17,13 +17,13 @@ const (
 	defaultIdleTimeout  = time.Second * 30
 )
 
-// Manager is an API manager and listener.
+
 type Manager struct {
 	manager *manager.Manager
 	router  *mux.Router
+	sessionManager *SessionManager
 }
 
-// route is a single path for a mux handler.
 type route struct {
 	Method   string
 	Path     string
@@ -52,6 +52,7 @@ func NewManager(manager *manager.Manager) *Manager {
 	m := &Manager{
 		manager: manager,
 		router:  mux.NewRouter().StrictSlash(true),
+		sessionManager: NewSessionManager(),
 	}
 
 	m.addRoutes()
@@ -59,46 +60,65 @@ func NewManager(manager *manager.Manager) *Manager {
 	return m
 }
 
-// Listen запускает сервер на указанном порту.
+
 func (m *Manager) Listen(addr string) error {
-	log.Println("API started on addr", addr)
+    log.Println("API started on addr", addr)
 
-	server := &http.Server{
-		Addr:         addr,
-		Handler:      m.router,
-		ReadTimeout:  defaultReadTimeout,
-		WriteTimeout: defaultWriteTimeout,
-		IdleTimeout:  defaultIdleTimeout,
-	}
+    
+    handler := wrapCORS(m.router)
 
-	return server.ListenAndServe()
+    server := &http.Server{
+        Addr:         addr,
+        Handler:      handler,
+        ReadTimeout:  defaultReadTimeout,
+        WriteTimeout: defaultWriteTimeout,
+        IdleTimeout:  defaultIdleTimeout,
+    }
+
+    return server.ListenAndServe()
 }
 
 func (m *Manager) addRoutes() {
-	m.addHandlers([]route{
-		routeGet("/api/v1/stub/get", m.hndlrStubGet),
-		routePost("/api/v1/stub/post", m.hndlrStubPost, m.wrapContentTypeJSON),
-		routeGet("/api/v1/hello", m.hndlrHello),
-		routeGet("/api/v1/graph", m.hndlrGraph),
-	})
+    m.addHandlers([]route{
+        routeGet("/api/v1/stub/get", m.hndlrStubGet),
+        routePost("/api/v1/stub/post", m.hndlrStubPost, m.wrapContentTypeJSON),
+        //routeGet("/api/v1/hello", m.hndlrHello),
+        routeGet("/api/v1/graph", m.hndlrGraph),
+        routeGet("/api/v1/isomorphism/round", m.hndlrIsomorphismRound), 
+		routePost("/api/v1/isomorphism/start", m.hndlrStartGame),
+		//routePost("/api/v1/isomorphism/start", m.hndlrCheckIsomorphism, m.wrapContentTypeJSON), // новый маршрут
+		//routePost("/api/v1/isomorphism/submit", m.hndlrSubmitAnswer, m.wrapContentTypeJSON),
+		routePost("/api/v1/isomorphism/submit", m.hndlrSubmitAnswer),
+		routeGet("/api/v1/debug/sessions", m.hndlrDebugSessions),
+		routePost("/api/v1/isomorphism/end", m.hndlrEndGame),
+		routePost("/api/v1/isomorphism/confirm", m.hndlrConfirm),
+
+    })
+
+	//m.router.HandleFunc("/api/v1/isomorphism/submit", m.hndlrSubmitAnswer).Methods("POST")
 }
 
-// addHandlers добавляет пути и обработчики запросов в мультиплексор (mux).
+
 func (m *Manager) addHandlers(routes []route) {
-	essentialWrappers := []wrapper{m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover}
-	for _, r := range routes {
-		var wrapper http.Handler = r.Handler
-		for _, w := range r.Wrappers {
-			wrapper = w(wrapper)
-		}
-		for _, w := range essentialWrappers {
-			wrapper = w(wrapper)
-		}
-		m.router.Methods(r.Method).Path(r.Path).Handler(wrapper)
-	}
+    essentialWrappers := []wrapper{
+        m.wrapBodyMaxSize, 
+        m.wrapEasterEggHeader, 
+        wrapRecover,
+        wrapCORS,
+    }
+    for _, r := range routes {
+        var wrapper http.Handler = r.Handler
+        for _, w := range r.Wrappers {
+            wrapper = w(wrapper)
+        }
+        for _, w := range essentialWrappers {
+            wrapper = w(wrapper)
+        }
+        m.router.Methods(r.Method).Path(r.Path).Handler(wrapper)
+    }
 }
 
-// send responds with a success.
+
 func (m *Manager) send(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -112,3 +132,4 @@ func (m *Manager) send(w http.ResponseWriter, data interface{}) {
 		notify(err)
 	}
 }
+

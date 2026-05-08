@@ -1,0 +1,6 @@
+echo ".env
+.git
+.gitignore
+.DS_Store
+*.log
+" > .dockerignore
