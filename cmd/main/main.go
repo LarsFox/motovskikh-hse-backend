@@ -6,6 +6,7 @@ import (
 	"github.com/vrischmann/envconfig"
 
 	"github.com/LarsFox/motovskikh-hse-backend/api"
+	"github.com/LarsFox/motovskikh-hse-backend/internal/repository"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 	"github.com/LarsFox/motovskikh-hse-backend/mysql"
 )
@@ -17,10 +18,16 @@ var Version string
 type config struct {
 	DB  *mysql.Config
 	Web *webConfig
+	JWT *jwtConfig
 }
 
 type webConfig struct {
 	Addr string `envconfig:"default=:8090"`
+}
+
+type jwtConfig struct {
+	// Секретный ключ для подписи JWT токенов, храним в святом в .env
+	Secret string
 }
 
 func main() {
@@ -37,8 +44,19 @@ func main() {
 	dbClient, err := mysql.NewClient(cfg.DB)
 	check(err)
 
+	userRepo := repository.NewUserRepository(dbClient.DB())
+	codeRepo := repository.NewVerificationCodeRepository(dbClient.DB())
+	refreshRepo := repository.NewRefreshTokenRepository(dbClient.DB())
+
 	publicAPIManager := api.NewManager(
-		manager.New(dbClient),
+		manager.New(
+			dbClient,
+			userRepo,
+			codeRepo,
+			refreshRepo,
+			nil, // emailSender добавлю позже
+			cfg.JWT.Secret,
+		),
 	)
 
 	check(publicAPIManager.Listen(cfg.Web.Addr))
