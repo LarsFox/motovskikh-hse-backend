@@ -29,6 +29,10 @@ type Client struct {
 	db *gorm.DB
 }
 
+func (c *Client) DB() *gorm.DB {
+	return c.db
+}
+
 func NewClient(cfg *Config) (*Client, error) {
 	db, err := gorm.Open(mysql.Open(cfg.connection()))
 	if err != nil {
