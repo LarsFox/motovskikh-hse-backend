@@ -10,8 +10,7 @@ import (
 	//"github.com/LarsFox/motovskikh-hse-backend/mysql"
 )
 
-// Version — версия приложения.
-// Пустое значение переменной подменяется с помощью флага -ldflags во время сборки.
+
 var Version string
 
 type config struct {
@@ -29,13 +28,6 @@ func main() {
 	if err := envconfig.InitWithPrefix(cfg, "motovskikh"); err != nil {
 		log.Fatal(err)
 	}
-
-	// На всех проверках я подразумеваю, что сайт должен работать,
-	// даже если клиент не инициализировался.
-	//
-	// Если нет БД, лучше отдать индекс.хтмл, чем 500.
-	//dbClient, err := mysql.NewClient(cfg.DB)
-	//check(err)
 
 	publicAPIManager := api.NewManager(
 		//manager.New(dbClient),
