@@ -78,6 +78,13 @@ func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
 		routeGet("/stub/get/", m.hndlrStubGet),
 		routePost("/stub/post/", m.hndlrStubPost, m.wrapContentTypeJSON),
+
+		// Auth
+		routePost("/api/auth/register", m.hndlrRegister, m.wrapContentTypeJSON),
+		routePost("/api/auth/verify-email", m.hndlrVerifyEmail, m.wrapContentTypeJSON),
+		routePost("/api/auth/sign-in", m.hndlrSignIn, m.wrapContentTypeJSON),
+		routePost("/api/auth/refresh", m.hndlrRefresh, m.wrapContentTypeJSON),
+		routePost("/api/auth/resend-code", m.hndlrResendCode, m.wrapContentTypeJSON),
 	})
 }
 
