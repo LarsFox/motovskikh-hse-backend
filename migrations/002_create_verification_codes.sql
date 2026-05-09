@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS verification_codes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSINGED NOT NULL,
     code VARCHAR(6) NOT NULL,
     type ENUM('email_verification', 'password_reset') NOT NULL,
     expires_at TIMESTAMP NOT NULL,
