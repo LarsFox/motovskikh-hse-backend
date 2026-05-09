@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/LarsFox/motovskikh-hse-backend/internal/models"
@@ -100,4 +101,13 @@ func (m *Manager) hndlrResendCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.send(w, map[string]string{"message": "verification code resent"})
+}
+
+// sendErrorPage возвращает страницу ошибки
+func (m *Manager) sendErrorPage(w http.ResponseWriter, code int) {
+	w.WriteHeader(code)
+	_, err := fmt.Fprintf(w, "nope, %d", code)
+	if err != nil {
+		notify(err)
+	}
 }
