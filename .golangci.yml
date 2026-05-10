@@ -3,7 +3,7 @@ run:
   issues-exit-code: 1
   tests: true
 linters:
-  default: all
+  enable-all: true
   disable:
     - contextcheck      # зачем-то предлагает прокинуть контексты.
     - depguard          # так и не понял предназначения.
@@ -50,7 +50,7 @@ linters:
       - builtin$
       - examples$
 formatters:
-  default: all
+  enable-all: true
   settings:
     gci:
       sections:

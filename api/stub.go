@@ -14,7 +14,7 @@ func (m *Manager) hndlrStubGet(w http.ResponseWriter, r *http.Request) {
 		"sup, db %v, user-agent %s",
 		m.manager.Stub(),
 		r.Header.Get("User-Agent"),
-	)
+	) // nolint:gosec
 	if err != nil {
 		entities.Notify(err)
 	}
