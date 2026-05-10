@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,12 +13,18 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var (
+	ErrInvalidTokenClaims      = errors.New("invalid token claims")
+	ErrInvalidRefreshToken     = errors.New("invalid refresh token")
+	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+)
+
 const (
 	accessTokenTTL  = 15 * time.Minute
 	refreshTokenTTL = 30 * 24 * time.Hour
 )
 
-// Сервис для работы с JWT токенами
+// TokenService — cервис для работы с JWT токенами.
 type TokenService struct {
 	secretKey        []byte
 	refreshTokenRepo repository.RefreshTokenRepository
@@ -36,8 +43,8 @@ type TokenPair struct {
 }
 
 type claims struct {
-	UserID uint `json:"user_id"`
 	jwt.RegisteredClaims
+	UserID uint `json:"user_id"`
 }
 
 func (s *TokenService) GeneratePair(userID uint) (*TokenPair, error) {
@@ -57,12 +64,12 @@ func (s *TokenService) GeneratePair(userID uint) (*TokenPair, error) {
 	}, nil
 }
 
-// ValidateAccess проверяет access токен и возвращает ID пользователя
+// ValidateAccess проверяет access токен и возвращает ID пользователя.
 func (s *TokenService) ValidateAccess(tokenString string) (uint, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &claims{}, func(t *jwt.Token) (interface{}, error) {
 		// Перекус таксиста чеееек
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method")
+			return nil, ErrUnexpectedSigningMethod
 		}
 		return s.secretKey, nil
 	})
@@ -72,7 +79,7 @@ func (s *TokenService) ValidateAccess(tokenString string) (uint, error) {
 
 	c, ok := token.Claims.(*claims)
 	if !ok || !token.Valid {
-		return 0, fmt.Errorf("invalid token claims")
+		return 0, ErrInvalidTokenClaims
 	}
 
 	return c.UserID, nil
@@ -83,10 +90,10 @@ func (s *TokenService) Refresh(refreshToken string) (*TokenPair, error) {
 
 	stored, err := s.refreshTokenRepo.GetValid(tokenHash)
 	if err != nil {
-		return nil, fmt.Errorf("invalid refresh token")
+		return nil, ErrInvalidRefreshToken
 	}
 
-	// Помечаем старый токен использованным
+	// Помечаем старый токен использованным.
 	if err := s.refreshTokenRepo.MarkAsUsed(stored.ID); err != nil {
 		return nil, fmt.Errorf("mark token as used: %w", err)
 	}
@@ -94,7 +101,7 @@ func (s *TokenService) Refresh(refreshToken string) (*TokenPair, error) {
 	return s.GeneratePair(stored.UserID)
 }
 
-// JWT токен
+// generateAccess в ответе за JWT токен.
 func (s *TokenService) generateAccess(userID uint) (string, error) {
 	c := claims{
 		UserID: userID,
@@ -112,7 +119,7 @@ func (s *TokenService) generateAccess(userID uint) (string, error) {
 	return signed, nil
 }
 
-// generateRefresh создаёт случайный токен, сохраняя хеш в БД
+// generateRefresh создаёт случайный токен, сохраняя хеш в БД.
 func (s *TokenService) generateRefresh(userID uint) (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {

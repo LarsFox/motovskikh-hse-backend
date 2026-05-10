@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,7 +11,16 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// AuthService — сервис авторизации
+var (
+	ErrEmailTaken           = errors.New("email already taken")
+	ErrUserNotFound         = errors.New("user not found")
+	ErrInvalidCode          = errors.New("invalid or expired code")
+	ErrInvalidCredentials   = errors.New("invalid credentials")
+	ErrEmailNotVerified     = errors.New("email not verified")
+	ErrEmailAlreadyVerified = errors.New("email already verified")
+)
+
+// AuthService — сервис авторизации.
 type AuthService struct {
 	userRepo    repository.UserRepository
 	codeRepo    repository.VerificationCodeRepository
@@ -21,7 +31,7 @@ type EmailSender interface {
 	SendVerificationCode(email, code string) error
 }
 
-// NewAuthService создаёт новый сервис авторизации
+// NewAuthService создаёт новый сервис авторизации.
 func NewAuthService(
 	userRepo repository.UserRepository,
 	codeRepo repository.VerificationCodeRepository,
@@ -34,17 +44,17 @@ func NewAuthService(
 	}
 }
 
-// Register регистрирует нового пользователя
+// Register регистрирует нового пользователя.
 func (s *AuthService) Register(req *models.CreateUserRequest) error {
 	// Валидация email
 	if err := utils.ValidateEmail(req.Email); err != nil {
 		return fmt.Errorf("invalid email: %w", err)
 	}
 
-	// Проверка, что email не занят
+	// Проверка, что email не занят.
 	existing, _ := s.userRepo.GetByEmail(req.Email)
 	if existing != nil {
-		return fmt.Errorf("email already taken")
+		return ErrEmailTaken
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -52,7 +62,7 @@ func (s *AuthService) Register(req *models.CreateUserRequest) error {
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	// Создаём пользователя в БД
+	// Создаём пользователя в БД.
 	user := &models.User{
 		Email:        req.Email,
 		PasswordHash: string(hash),
@@ -61,20 +71,20 @@ func (s *AuthService) Register(req *models.CreateUserRequest) error {
 		return fmt.Errorf("create user: %w", err)
 	}
 
-	// Генерация кода подтверждения
+	// Генерация кода подтверждения.
 	return s.sendVerificationCode(user.ID, user.Email)
 }
 
-// VerifyEmail подтверждает email пользователя
+// VerifyEmail подтверждает email пользователя.
 func (s *AuthService) VerifyEmail(req *models.VerifyEmailRequest) error {
 	user, err := s.userRepo.GetByEmail(req.Email)
 	if err != nil {
-		return fmt.Errorf("user not found")
+		return ErrUserNotFound
 	}
 
 	vc, err := s.codeRepo.GetValidCode(user.ID, models.EmailVerification, req.Code)
 	if err != nil {
-		return fmt.Errorf("invalid or expired code")
+		return ErrInvalidCode
 	}
 
 	if err := s.codeRepo.MarkAsUsed(vc.ID); err != nil {
@@ -84,46 +94,45 @@ func (s *AuthService) VerifyEmail(req *models.VerifyEmailRequest) error {
 	return s.userRepo.UpdateEmailVerified(user.ID, true)
 }
 
-// SignIn вход в ЛК
 func (s *AuthService) SignIn(email, password string) (*models.User, error) {
 	user, err := s.userRepo.GetByEmail(email)
 	if err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 
 	if !user.EmailVerified {
-		return nil, fmt.Errorf("email not verified")
+		return nil, ErrEmailNotVerified
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 
 	return user, nil
 }
 
-// ResendCode для повторной отправки кода подтверждения
+// ResendCode для повторной отправки кода подтверждения.
 func (s *AuthService) ResendCode(email string) error {
 	user, err := s.userRepo.GetByEmail(email)
 	if err != nil {
-		return fmt.Errorf("user not found")
+		return ErrUserNotFound
 	}
 
 	if user.EmailVerified {
-		return fmt.Errorf("email already verified")
+		return ErrEmailAlreadyVerified
 	}
 
 	return s.sendVerificationCode(user.ID, user.Email)
 }
 
-// sendVerificationCode (приватный метод) генерирует и отправляет код подтверждения
+// sendVerificationCode (приватный метод) генерирует и отправляет код подтверждения.
 func (s *AuthService) sendVerificationCode(userID uint, email string) error {
 	code, err := utils.GenerateVerificationCode()
 	if err != nil {
 		return fmt.Errorf("generate code: %w", err)
 	}
 
-	// Сохраняем код в БД, действует 15 минут
+	// Сохраняем код в БД, действует 15 минут.
 	vc := &models.VerificationCode{
 		UserID:    userID,
 		Code:      code,
@@ -134,6 +143,6 @@ func (s *AuthService) sendVerificationCode(userID uint, email string) error {
 		return fmt.Errorf("save verification code: %w", err)
 	}
 
-	// Отправка кода на email
+	// Отправка кода на email.
 	return s.emailSender.SendVerificationCode(email, code)
 }
