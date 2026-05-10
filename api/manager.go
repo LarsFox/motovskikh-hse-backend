@@ -8,7 +8,9 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
+	"github.com/LarsFox/motovskikh-hse-backend/mp"
 )
 
 const (
@@ -19,8 +21,15 @@ const (
 
 // Manager is an API manager and listener.
 type Manager struct {
-	manager *manager.Manager
-	router  *mux.Router
+	connector connector
+	manager   *manager.Manager
+	mp        *mp.Manager
+	router    *mux.Router
+}
+
+type connector interface {
+	Delete(room, player string)
+	Upgrade(w http.ResponseWriter, r *http.Request, responseHeader http.Header, room, player string) (entities.Connection, error)
 }
 
 // route is a single path for a mux handler.
@@ -48,10 +57,12 @@ func newRoute(method, path string, handler http.HandlerFunc, wrappers ...wrapper
 	}
 }
 
-func NewManager(manager *manager.Manager) *Manager {
+func NewManager(connector connector, manager *manager.Manager, mp *mp.Manager) *Manager {
 	m := &Manager{
-		manager: manager,
-		router:  mux.NewRouter().StrictSlash(true),
+		connector: connector,
+		manager:   manager,
+		mp:        mp,
+		router:    mux.NewRouter().StrictSlash(true),
 	}
 
 	m.addRoutes()
@@ -78,6 +89,8 @@ func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
 		routeGet("/stub/get/", m.hndlrStubGet),
 		routePost("/stub/post/", m.hndlrStubPost, m.wrapContentTypeJSON),
+
+		routeGet("/api/wsup/v1/cvetango", m.hndlrCvetangoJoin),
 	})
 }
 

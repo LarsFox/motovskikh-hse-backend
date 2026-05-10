@@ -7,7 +7,9 @@ import (
 
 	"github.com/LarsFox/motovskikh-hse-backend/api"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
+	"github.com/LarsFox/motovskikh-hse-backend/mp"
 	"github.com/LarsFox/motovskikh-hse-backend/mysql"
+	"github.com/LarsFox/motovskikh-hse-backend/ws"
 )
 
 // Version — версия приложения.
@@ -21,6 +23,7 @@ type config struct {
 
 type webConfig struct {
 	Addr string `envconfig:"default=:8090"`
+	Host string `envconfig:"default=http://localhost:8090"` // motovskikh.ru
 }
 
 func main() {
@@ -37,8 +40,11 @@ func main() {
 	dbClient, err := mysql.NewClient(cfg.DB)
 	check(err)
 
+	connector := ws.New(cfg.Web.Host)
 	publicAPIManager := api.NewManager(
+		connector,
 		manager.New(dbClient),
+		mp.New(connector),
 	)
 
 	check(publicAPIManager.Listen(cfg.Web.Addr))
