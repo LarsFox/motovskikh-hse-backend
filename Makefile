@@ -27,3 +27,4 @@ gen:
 	@mkdir -p generated
 	@swagger generate model -f ./swagger.yml -t ./generated --accept-definitions-only
 	@go generate ./...
+	@touch .env
