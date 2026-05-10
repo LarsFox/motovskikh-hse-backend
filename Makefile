@@ -5,9 +5,11 @@ VERSION := "-X main.Version=$(shell git rev-parse --short HEAD)_$(shell date -u 
 
 default: run
 
+init:
+	go install github.com/go-swagger/go-swagger/cmd/swagger@latest
+
 run:
 	@go run -ldflags $(VERSION) $(RACE_RUN_FLAG) ./cmd/main/main.go
-
 
 bp:
 	@env GOOS=linux GOARCH=386 go build -o goserver -ldflags $(VERSION) ./cmd/main/main.go
@@ -27,4 +29,3 @@ gen:
 	@mkdir -p generated
 	@swagger generate model -f ./swagger.yml -t ./generated --accept-definitions-only
 	@go generate ./...
-	@touch .env

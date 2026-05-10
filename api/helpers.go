@@ -8,9 +8,10 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
 const (

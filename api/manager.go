@@ -97,11 +97,11 @@ func (m *Manager) addHandlers(routes []route) {
 }
 
 // send responds with a success.
-func (m *Manager) send(w http.ResponseWriter, data interface{}) {
+func (m *Manager) send(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"ok":     true,
 		"result": data,
 	}
