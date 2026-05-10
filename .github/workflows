@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Закачка кода на ранер
+        uses: actions/checkout@v4
+      - name: Проверяем версию Гоу
+        run: go version
+      - name: Запускаем проверки
+        run: make test lint
