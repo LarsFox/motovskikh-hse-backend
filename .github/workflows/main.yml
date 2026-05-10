@@ -20,9 +20,9 @@ jobs:
           go install github.com/go-swagger/go-swagger/cmd/swagger@latest
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: Устанавливаем линтер
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: latest
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: Скачиваем зависимости
         run: go mod download
       - name: Запускаем проверки и сборку
