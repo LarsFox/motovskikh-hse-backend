@@ -1,12 +1,15 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/LarsFox/motovskikh-hse-backend/internal/models"
 	"gorm.io/gorm"
 )
+
+var ErrCodeNotFound = errors.New("code not found or expired")
 
 // VerificationCodeRepository — интерфейс для работы с кодами подтверждения.
 type VerificationCodeRepository interface {
@@ -42,8 +45,8 @@ func (r *verificationCodeRepository) GetValidCode(userID uint, codeType models.V
 		userID, codeType, code, false, time.Now(),
 	).First(&vc).Error
 
-	if err == gorm.ErrRecordNotFound {
-		return nil, fmt.Errorf("code not found or expired")
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrCodeNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get valid code: %w", err)

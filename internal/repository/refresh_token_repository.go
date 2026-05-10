@@ -1,12 +1,15 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/LarsFox/motovskikh-hse-backend/internal/models"
 	"gorm.io/gorm"
 )
+
+var ErrTokenNotFound = errors.New("token not found or expired")
 
 type RefreshTokenRepository interface {
 	Create(token *models.RefreshToken) error
@@ -39,8 +42,8 @@ func (r *refreshTokenRepository) GetValid(tokenHash string) (*models.RefreshToke
 		tokenHash, false, time.Now(),
 	).First(&token).Error
 
-	if err == gorm.ErrRecordNotFound {
-		return nil, fmt.Errorf("token not found or expired")
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrTokenNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get refresh token: %w", err)
