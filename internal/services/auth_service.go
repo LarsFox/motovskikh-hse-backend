@@ -11,6 +11,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const verificationCodeTTL = 15 * time.Minute
+
 var (
 	ErrEmailTaken           = errors.New("email already taken")
 	ErrUserNotFound         = errors.New("user not found")
@@ -137,7 +139,7 @@ func (s *AuthService) sendVerificationCode(userID uint, email string) error {
 		UserID:    userID,
 		Code:      code,
 		Type:      models.EmailVerification,
-		ExpiresAt: time.Now().Add(15 * time.Minute),
+		ExpiresAt: time.Now().Add(verificationCodeTTL),
 	}
 	if err := s.codeRepo.Create(vc); err != nil {
 		return fmt.Errorf("save verification code: %w", err)

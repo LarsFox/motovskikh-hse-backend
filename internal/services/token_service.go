@@ -20,8 +20,9 @@ var (
 )
 
 const (
-	accessTokenTTL  = 15 * time.Minute
-	refreshTokenTTL = 30 * 24 * time.Hour
+	accessTokenTTL    = 15 * time.Minute
+	refreshTokenTTL   = 30 * 24 * time.Hour
+	refreshTokenBytes = 32
 )
 
 // TokenService — cервис для работы с JWT токенами.
@@ -44,6 +45,7 @@ type TokenPair struct {
 
 type claims struct {
 	jwt.RegisteredClaims
+
 	UserID uint `json:"user_id"`
 }
 
@@ -66,7 +68,7 @@ func (s *TokenService) GeneratePair(userID uint) (*TokenPair, error) {
 
 // ValidateAccess проверяет access токен и возвращает ID пользователя.
 func (s *TokenService) ValidateAccess(tokenString string) (uint, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &claims{}, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &claims{}, func(t *jwt.Token) (any, error) {
 		// Перекус таксиста чеееек
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, ErrUnexpectedSigningMethod
@@ -121,7 +123,7 @@ func (s *TokenService) generateAccess(userID uint) (string, error) {
 
 // generateRefresh создаёт случайный токен, сохраняя хеш в БД.
 func (s *TokenService) generateRefresh(userID uint) (string, error) {
-	b := make([]byte, 32)
+	b := make([]byte, refreshTokenBytes)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("generate random bytes: %w", err)
 	}
