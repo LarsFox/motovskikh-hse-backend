@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"html"
 	"net/http"
 
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
@@ -13,8 +14,8 @@ func (m *Manager) hndlrStubGet(w http.ResponseWriter, r *http.Request) {
 		w,
 		"sup, db %v, user-agent %s",
 		m.manager.Stub(),
-		r.Header.Get("User-Agent"),
-	) // nolint:gosec
+		html.EscapeString(r.Header.Get("User-Agent")),
+	)
 	if err != nil {
 		entities.Notify(err)
 	}

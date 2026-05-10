@@ -50,7 +50,12 @@ linters:
       - builtin$
       - examples$
 formatters:
-  default: all
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - swaggo
   settings:
     gci:
       sections:
