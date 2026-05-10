@@ -10,7 +10,12 @@ jobs:
     steps:
       - name: Закачка кода на ранер
         uses: actions/checkout@v4
-      - name: Проверяем версию Гоу
-        run: go version
+      - name: Устанавливаем Гоу
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+      - name: Скачиваем зависимости
+        run: go mod download
       - name: Запускаем проверки
         run: make test lint
