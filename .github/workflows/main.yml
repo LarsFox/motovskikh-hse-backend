@@ -30,11 +30,11 @@ jobs:
             go install github.com/go-swagger/go-swagger/cmd/swagger@latest
           fi
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - name: Устанавливаем линтер
+      - name: Скачиваем зависимости
+        run: go mod download
+      - name: Запускаем тесты
+        run: touch .env && make gen test
+      - name: Запускаем линтер
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12
-      - name: Скачиваем зависимости
-        run: go mod download
-      - name: Запускаем проверки и сборку
-        run: touch .env && make b
