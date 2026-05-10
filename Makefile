@@ -12,7 +12,7 @@ run:
 bp:
 	@env GOOS=linux GOARCH=386 go build -o goserver -ldflags $(VERSION) ./cmd/main/main.go
 
-b: lint test bp
+b: gen lint test bp
 
 test:
 	@go test ./...
@@ -27,3 +27,4 @@ gen:
 	@mkdir -p generated
 	@swagger generate model -f ./swagger.yml -t ./generated --accept-definitions-only
 	@go generate ./...
+	@touch .env
