@@ -18,4 +18,4 @@ jobs:
       - name: Скачиваем зависимости
         run: go mod download
       - name: Запускаем проверки и сборку
-        run: make b
+        run: touch .env && make b
