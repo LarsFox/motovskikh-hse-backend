@@ -7,7 +7,7 @@ import (
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
-// возвращает страницу ошибки
+// sendErrorPage возвращает страницу ошибки.
 func (m *Manager) sendErrorPage(w http.ResponseWriter, code int) {
 	w.WriteHeader(code)
 
