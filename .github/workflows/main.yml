@@ -15,11 +15,21 @@ jobs:
         with:
           go-version: '1.25'
           cache: true
+      - name: Прогреваем кэш
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/bin
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-bin-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-bin-
       - name: Устанавливаем Свагер
         run: |
-          go install github.com/go-swagger/go-swagger/cmd/swagger@latest
+          if [ ! -f ~/go/bin/swagger ]; then
+            go install github.com/go-swagger/go-swagger/cmd/swagger@latest
+          fi
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-        cache: true
       - name: Устанавливаем линтер
         uses: golangci/golangci-lint-action@v9
         with:
