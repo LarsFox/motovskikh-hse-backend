@@ -7,7 +7,7 @@ import (
 
 	"github.com/LarsFox/motovskikh-hse-backend/api"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
-	//"github.com/LarsFox/motovskikh-hse-backend/mysql"
+	"github.com/LarsFox/motovskikh-hse-backend/mysql"
 )
 
 // Version — версия приложения.
@@ -15,7 +15,7 @@ import (
 var Version string
 
 type config struct {
-	//DB  *mysql.Config
+	DB  *mysql.Config
 	Web *webConfig
 }
 
@@ -34,14 +34,12 @@ func main() {
 	// даже если клиент не инициализировался.
 	//
 	// Если нет БД, лучше отдать индекс.хтмл, чем 500.
-	//dbClient, err := mysql.NewClient(cfg.DB)
-	//check(err)
+	dbClient, err := mysql.NewClient(cfg.DB)
+	check(err)
 
 	publicAPIManager := api.NewManager(
-		//manager.New(dbClient),
-		manager.New(nil),
+		manager.New(dbClient),
 	)
-
 
 	check(publicAPIManager.Listen(cfg.Web.Addr))
 }
