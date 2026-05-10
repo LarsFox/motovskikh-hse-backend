@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
@@ -20,12 +21,57 @@ const (
 	// Максимальный размер устанавливаю 1 МБ * 1.4, размер кодирования бэйс-64 с запасом.
 	// В Нжинксе указываю такое же значение.
 	maxBodySize = 1468006
+
+	maxNickSize = 42
+
+	playerNameCookie  = "playerReceipe"
+	prolongCookieTime = time.Hour * 24 * 365 // 1 год.
 )
 
 // Внутренние ошибки.
 var (
 	errUnknownError = errors.New("unknown error")
 )
+
+func cutNick(nick string) string {
+	var i int
+	for j := range nick {
+		if i == maxNickSize {
+			return nick[:j]
+		}
+		i++
+	}
+
+	return nick
+}
+
+func getPlayerHeader(r *http.Request) (http.Header, string, error) {
+	cookie, err := r.Cookie(playerNameCookie)
+	switch {
+	case errors.Is(err, http.ErrNoCookie):
+		header := http.Header{}
+		player := entities.NewPlayerName()
+
+		cookie := &http.Cookie{
+			Name:     playerNameCookie,
+			Value:    player,
+			Expires:  time.Now().Add(prolongCookieTime),
+			HttpOnly: true,
+			Path:     "/",
+			SameSite: http.SameSiteStrictMode,
+			Secure:   true,
+		}
+
+		header.Add("Set-Cookie", cookie.String())
+		return header, player, nil
+
+	case errors.Is(err, nil):
+		return http.Header{}, cookie.Value, nil
+
+	default:
+		return nil, "", err
+	}
+}
 
 func notify(e error, meta ...map[string]any) {
 	if strings.Contains(e.Error(), "write: broken pipe") {
