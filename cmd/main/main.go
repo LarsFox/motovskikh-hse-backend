@@ -7,6 +7,7 @@ import (
 
 	"github.com/LarsFox/motovskikh-hse-backend/api"
 	"github.com/LarsFox/motovskikh-hse-backend/internal/repository"
+	"github.com/LarsFox/motovskikh-hse-backend/internal/services"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 	"github.com/LarsFox/motovskikh-hse-backend/mysql"
 )
@@ -54,7 +55,7 @@ func main() {
 			userRepo,
 			codeRepo,
 			refreshRepo,
-			nil, // emailSender добавлю позже
+			&services.FakeEmailSender{},
 			cfg.JWT.Secret,
 		),
 	)
