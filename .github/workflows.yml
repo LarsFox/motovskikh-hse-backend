@@ -17,5 +17,5 @@ jobs:
           cache: true
       - name: Скачиваем зависимости
         run: go mod download
-      - name: Запускаем проверки
-        run: make test lint
+      - name: Запускаем проверки и сборку
+        run: make b

@@ -8,7 +8,11 @@ default: run
 run:
 	@go run -ldflags $(VERSION) $(RACE_RUN_FLAG) ./cmd/main/main.go
 
-b: lint test
+
+bp:
+	@env GOOS=linux GOARCH=386 go build -o goserver -ldflags $(VERSION) ./cmd/main/main.go
+
+b: lint test bp
 
 test:
 	@go test ./...
