@@ -17,13 +17,13 @@ const (
 	defaultIdleTimeout  = time.Second * 30
 )
 
-// Manager is an API manager and listener
+// Manager is an API manager and listener.
 type Manager struct {
 	manager *manager.Manager
 	router  *mux.Router
 }
 
-// route is a single path for a mux handler
+// route is a single path for a mux handler.
 type route struct {
 	Method   string
 	Path     string
@@ -59,7 +59,7 @@ func NewManager(manager *manager.Manager) *Manager {
 	return m
 }
 
-// Listen запускает сервер на указанном порту
+// Listen запускает сервер на указанном порту.
 func (m *Manager) Listen(addr string) error {
 	log.Println("API started on addr", addr)
 
@@ -88,7 +88,7 @@ func (m *Manager) addRoutes() {
 	})
 }
 
-// addHandlers добавляет пути и обработчики запросов в мультиплексор (mux)
+// addHandlers добавляет пути и обработчики запросов в мультиплексор (mux).
 func (m *Manager) addHandlers(routes []route) {
 	essentialWrappers := []wrapper{m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover}
 	for _, r := range routes {
@@ -103,12 +103,12 @@ func (m *Manager) addHandlers(routes []route) {
 	}
 }
 
-// send responds with a success
-func (m *Manager) send(w http.ResponseWriter, data interface{}) {
+// send responds with a success.
+func (m *Manager) send(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"ok":     true,
 		"result": data,
 	}
@@ -118,11 +118,11 @@ func (m *Manager) send(w http.ResponseWriter, data interface{}) {
 	}
 }
 
-// sendError отправляет ошибку клиенту
+// sendError отправляет ошибку клиенту.
 func (m *Manager) sendError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"ok":    false,
 		"error": message,
 	}
