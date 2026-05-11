@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// RefreshToken — токен для обновления access токена, храним хеш токена
+// RefreshToken — токен для обновления access токена, храним хеш токена.
 type RefreshToken struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID    uint      `gorm:"not null;index"           json:"user_id"`
