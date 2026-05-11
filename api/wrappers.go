@@ -44,10 +44,9 @@ func wrapRecover(h http.Handler) http.Handler {
 	})
 }
 
-// wrapAuth проверяет JWT токен и стоит на страже маршрутов личного кабинета
+// wrapAuth проверяет JWT токен и стоит на страже маршрутов личного кабинета.
 func (m *Manager) wrapAuth(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			m.sendError(w, http.StatusUnauthorized, "missing authorization header")
