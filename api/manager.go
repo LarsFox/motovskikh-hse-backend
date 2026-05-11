@@ -76,15 +76,10 @@ func (m *Manager) Listen(addr string) error {
 
 func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
-		routeGet("/stub/get/", m.hndlrStubGet),
-		routePost("/stub/post/", m.hndlrStubPost, m.wrapContentTypeJSON),
-
-		// Auth
 		routePost("/api/auth/register", m.hndlrRegister, m.wrapContentTypeJSON),
 		routePost("/api/auth/verify-email", m.hndlrVerifyEmail, m.wrapContentTypeJSON),
-		routePost("/api/auth/sign-in", m.hndlrSignIn, m.wrapContentTypeJSON),
-		routePost("/api/auth/refresh", m.hndlrRefresh, m.wrapContentTypeJSON),
-		routePost("/api/auth/resend-code", m.hndlrResendCode, m.wrapContentTypeJSON),
+		routePost("/api/auth/sign-in", m.hndlrEnjoy, m.wrapContentTypeJSON),
+		routePost("/api/auth/refresh", m.hndlrRefreshToken, m.wrapContentTypeJSON),
 	})
 }
 
@@ -113,19 +108,6 @@ func (m *Manager) send(w http.ResponseWriter, data any) {
 		"result": data,
 	}
 
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		notify(err)
-	}
-}
-
-// sendError отправляет ошибку клиенту.
-func (m *Manager) sendError(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
-	resp := map[string]any{
-		"ok":    false,
-		"error": message,
-	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		notify(err)
 	}

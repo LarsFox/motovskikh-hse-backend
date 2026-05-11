@@ -1,8 +1,11 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strings"
+
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
 type wrapper func(http.Handler) http.Handler
@@ -49,24 +52,24 @@ func (m *Manager) wrapAuth(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			m.sendError(w, http.StatusUnauthorized, "missing authorization header")
+			m.sendErrorPage(w, http.StatusUnauthorized)
 			return
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
-			m.sendError(w, http.StatusUnauthorized, "invalid authorization format")
+			m.sendErrorPage(w, http.StatusUnauthorized)
 			return
 		}
 
-		userID, err := m.manager.Token().ValidateAccess(tokenString)
+		userID, err := m.manager.ValidateAccess(tokenString)
 		if err != nil {
-			m.sendError(w, http.StatusUnauthorized, "invalid token")
+			m.sendErrorPage(w, http.StatusUnauthorized)
 			return
 		}
 
 		// Кладём user_id в контекст
-		ctx := contextWithUserID(r.Context(), userID)
+		ctx := context.WithValue(r.Context(), ctxUser, &entities.User{ID: userID})
 		inner.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

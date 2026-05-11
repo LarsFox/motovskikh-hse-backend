@@ -1,46 +1,40 @@
 package manager
 
 import (
-	"github.com/LarsFox/motovskikh-hse-backend/internal/repository"
-	"github.com/LarsFox/motovskikh-hse-backend/internal/services"
+	"context"
+	"time"
+
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
 type db interface {
-	Stub() bool
+	CheckExistingEmail(ctx context.Context, email string) (*entities.User, error)
+	CreateUser(ctx context.Context, user *entities.User) error
+	GetUserByEmail(ctx context.Context, email string) (*entities.User, error)
+	GetRefreshToken(ctx context.Context, hash string) (int64, error)
+	RefreshToken(ctx context.Context, hash, fresh string, expiresAt time.Time) error
+	SaveVerificationCode(ctx context.Context, code *entities.VerificationCode) error
+	VerifyEmail(ctx context.Context, email, code string) error
+}
+
+type emailer interface {
+	SendEmail(ctx context.Context, to, subj, msg string) error
 }
 
 type Manager struct {
-	db           db
-	authService  *services.AuthService
-	tokenService *services.TokenService
+	db        db
+	emailer   emailer
+	secretKey []byte
 }
 
 func New(
 	db db,
-	userRepo repository.UserRepository,
-	codeRepo repository.VerificationCodeRepository,
-	refreshRepo repository.RefreshTokenRepository,
-	emailSender services.EmailSender,
+	emailer emailer,
 	jwtSecret string,
 ) *Manager {
-	tokenService := services.NewTokenService(jwtSecret, refreshRepo)
-	authService := services.NewAuthService(userRepo, codeRepo, emailSender)
-
 	return &Manager{
-		db:           db,
-		authService:  authService,
-		tokenService: tokenService,
+		db:        db,
+		emailer:   emailer,
+		secretKey: []byte(jwtSecret),
 	}
-}
-
-func (m *Manager) Stub() bool {
-	return m.db.Stub()
-}
-
-func (m *Manager) Auth() *services.AuthService {
-	return m.authService
-}
-
-func (m *Manager) Token() *services.TokenService {
-	return m.tokenService
 }

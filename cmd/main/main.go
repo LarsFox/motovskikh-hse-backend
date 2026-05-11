@@ -6,8 +6,7 @@ import (
 	"github.com/vrischmann/envconfig"
 
 	"github.com/LarsFox/motovskikh-hse-backend/api"
-	"github.com/LarsFox/motovskikh-hse-backend/internal/repository"
-	"github.com/LarsFox/motovskikh-hse-backend/internal/services"
+	"github.com/LarsFox/motovskikh-hse-backend/emailer"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 	"github.com/LarsFox/motovskikh-hse-backend/mysql"
 )
@@ -45,17 +44,10 @@ func main() {
 	dbClient, err := mysql.NewClient(cfg.DB)
 	check(err)
 
-	userRepo := repository.NewUserRepository(dbClient.DB())
-	codeRepo := repository.NewVerificationCodeRepository(dbClient.DB())
-	refreshRepo := repository.NewRefreshTokenRepository(dbClient.DB())
-
 	publicAPIManager := api.NewManager(
 		manager.New(
 			dbClient,
-			userRepo,
-			codeRepo,
-			refreshRepo,
-			&services.FakeEmailSender{},
+			&emailer.Client{},
 			cfg.JWT.Secret,
 		),
 	)

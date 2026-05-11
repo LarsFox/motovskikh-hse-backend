@@ -1,10 +1,11 @@
-package utils
+package auth
 
 import (
-	"errors"
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
 const (
@@ -14,38 +15,31 @@ const (
 
 var (
 	emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
-
-	ErrEmailEmpty   = errors.New("email cannot be empty")
-	ErrEmailInvalid = errors.New("invalid email format")
-
-	ErrPasswordTooShort = errors.New("password must be at lest 8 characters")
-	ErrPasswordTooLong  = errors.New("password is too long")
-	ErrPasswordTooWeak  = errors.New("password must contain at least one letter, one digit and one special character")
 )
 
-func ValidateEmail(email string) error {
+// TODO: написать тесты на каждую экспортируемую функцию этого пакета.
+
+func ValidateEmail(email string) bool {
 	email = strings.TrimSpace(email)
 	if email == "" {
-		return ErrEmailEmpty
+		return false
 	}
-	if !emailRegex.MatchString(email) {
-		return ErrEmailInvalid
-	}
-	return nil
+
+	return emailRegex.MatchString(email)
 }
 
 func ValidatePassword(password string) error {
 	password = strings.TrimSpace(password)
 	if len(password) < MinPasswordLength {
-		return ErrPasswordTooShort
+		return entities.ErrInvalidInput
 	}
 
 	if len(password) > MaxPasswordLength {
-		return ErrPasswordTooLong
+		return entities.ErrInvalidInput
 	}
 
 	if !isPasswordStrong(password) {
-		return ErrPasswordTooWeak
+		return entities.ErrInvalidInput
 	}
 	return nil
 }
@@ -68,5 +62,6 @@ func isPasswordStrong(password string) bool {
 			return true
 		}
 	}
+
 	return false
 }

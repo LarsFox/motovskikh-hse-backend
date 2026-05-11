@@ -1,16 +1,19 @@
 package api
 
-import "context"
+import (
+	"net/http"
 
-type contextKey string
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
+)
 
-const ctxUserID = contextKey("user_id")
+type contextKey int
 
-func contextWithUserID(ctx context.Context, userID uint) context.Context {
-	return context.WithValue(ctx, ctxUserID, userID)
-}
+const ctxUser contextKey = iota + 1
 
-func userIDFromContext(ctx context.Context) (uint, bool) {
-	userID, ok := ctx.Value(ctxUserID).(uint)
-	return userID, ok
+func getFromCtxTester(r *http.Request) *entities.User {
+	tester, ok := r.Context().Value(ctxUser).(*entities.User)
+	if !ok {
+		return nil
+	}
+	return tester
 }

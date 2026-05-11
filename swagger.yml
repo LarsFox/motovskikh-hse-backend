@@ -100,6 +100,20 @@ definitions:
         url:
           type: string
 
+  # TODO: по аналогии с RegisterV1Request
+  # RefreshTokenV1Request:
+
+  RegisterV1Request:
+    type: object
+    required:
+      - email
+      - password
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+
   RespecterGetGameRequest:
     type: object
     required:
@@ -116,7 +130,6 @@ definitions:
       secret:
         type: string
 
-  # TODO: GetGameResponse
   RespecterLoadGameResponse:
     type: object
     properties:
@@ -313,6 +326,9 @@ definitions:
       message:
         type: string
 
+  # TODO: по аналогии с RegisterV1Request
+  # VerifyEmailV1Request:
+
   WorkshopDeleteRequest:
     type: object
     required:
@@ -482,6 +498,16 @@ definitions:
         description: Допустимый максимум зума. При 0 подразумевается значение по умолчанию, при -1 — отключить зум.
         type: integer
         x-omitempty: false
+
+  TokenPair:
+    required:
+      - access_token
+      - refresh_token
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
 
   WorkshopTest:
     type: object
