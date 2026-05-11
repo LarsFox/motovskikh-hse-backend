@@ -5,9 +5,11 @@ import (
 	"fmt"
 )
 
-// GenerateVerificationCode генерирует 6-значный код
+const codeBytes = 3
+
+// GenerateVerificationCode генерирует 6-значный код.
 func GenerateVerificationCode() (string, error) {
-	b := make([]byte, 3)
+	b := make([]byte, codeBytes)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
