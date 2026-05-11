@@ -12,7 +12,7 @@ type UserRepository interface {
 	UpdatePassword(userID uint, passwordHash string) error
 }
 
-// NewUserRepository создаёт новый репозиторий пользователей.
+//nolint:ireturn
 func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{db: db}
 }

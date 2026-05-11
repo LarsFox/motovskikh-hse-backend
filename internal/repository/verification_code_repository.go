@@ -25,6 +25,8 @@ type verificationCodeRepository struct {
 }
 
 // NewVerificationCodeRepository создаёт новый репозиторий кодов.
+//
+//nolint:ireturn
 func NewVerificationCodeRepository(db *gorm.DB) VerificationCodeRepository {
 	return &verificationCodeRepository{db: db}
 }

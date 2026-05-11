@@ -22,11 +22,12 @@ type refreshTokenRepository struct {
 	db *gorm.DB
 }
 
+//nolint:ireturn
 func NewRefreshTokenRepository(db *gorm.DB) RefreshTokenRepository {
 	return &refreshTokenRepository{db: db}
 }
 
-// Create в ответе за сохранение нового refresh токена в БД
+// Create в ответе за сохранение нового refresh токена в БД.
 func (r *refreshTokenRepository) Create(token *models.RefreshToken) error {
 	if err := r.db.Create(token).Error; err != nil {
 		return fmt.Errorf("create refresh token: %w", err)
@@ -34,7 +35,7 @@ func (r *refreshTokenRepository) Create(token *models.RefreshToken) error {
 	return nil
 }
 
-// GetValid ищет действующий refresh токен по хешу
+// GetValid ищет действующий refresh токен по хешу.
 func (r *refreshTokenRepository) GetValid(tokenHash string) (*models.RefreshToken, error) {
 	var token models.RefreshToken
 	err := r.db.Where(
