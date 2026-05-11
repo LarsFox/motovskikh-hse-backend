@@ -8,8 +8,9 @@ import (
 	"github.com/LarsFox/motovskikh-hse-backend/internal/models"
 )
 
-func (m *Manager) hndlrRegister(w http.ResponseWriter, r *http.Request) {
+const keyMessage = "message"
 
+func (m *Manager) hndlrRegister(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		m.sendError(w, http.StatusBadRequest, "invalid request body")
@@ -21,10 +22,10 @@ func (m *Manager) hndlrRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m.send(w, map[string]string{"message": "verification code sent to email"})
+	m.send(w, map[string]string{keyMessage: "verification code sent to email"})
 }
 
-// hndlrVerifyEmail в ответе за подтверждение email по коду
+// hndlrVerifyEmail в ответе за подтверждение email по коду.
 func (m *Manager) hndlrVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	var req models.VerifyEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -37,10 +38,10 @@ func (m *Manager) hndlrVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m.send(w, map[string]string{"message": "email verified successfully"})
+	m.send(w, map[string]string{keyMessage: "email verified successfully"})
 }
 
-// hndlrSignIn запускает в личный кабинет
+// hndlrSignIn запускает в личный кабинет.
 func (m *Manager) hndlrSignIn(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
@@ -66,7 +67,7 @@ func (m *Manager) hndlrSignIn(w http.ResponseWriter, r *http.Request) {
 	m.send(w, tokens)
 }
 
-// hndlrRefresh обновляет access токен по refresh токену
+// hndlrRefresh обновляет access токен по refresh токену.
 func (m *Manager) hndlrRefresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
@@ -85,7 +86,7 @@ func (m *Manager) hndlrRefresh(w http.ResponseWriter, r *http.Request) {
 	m.send(w, tokens)
 }
 
-// hndlrResendCode в ответе за повторную отправку кода подтверждения
+// hndlrResendCode в ответе за повторную отправку кода подтверждения.
 func (m *Manager) hndlrResendCode(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email string `json:"email"`
@@ -100,10 +101,10 @@ func (m *Manager) hndlrResendCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m.send(w, map[string]string{"message": "verification code resent"})
+	m.send(w, map[string]string{keyMessage: "verification code resent"})
 }
 
-// sendErrorPage возвращает страницу ошибки
+// sendErrorPage возвращает страницу ошибки.
 func (m *Manager) sendErrorPage(w http.ResponseWriter, code int) {
 	w.WriteHeader(code)
 	_, err := fmt.Fprintf(w, "nope, %d", code)
