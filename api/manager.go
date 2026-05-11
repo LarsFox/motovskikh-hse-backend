@@ -25,6 +25,7 @@ type Manager struct {
 	manager   *manager.Manager
 	mp        *mp.Manager
 	router    *mux.Router
+	sessionManager *SessionManager
 }
 
 type connector interface {
@@ -63,6 +64,7 @@ func NewManager(connector connector, manager *manager.Manager, mp *mp.Manager) *
 		manager:   manager,
 		mp:        mp,
 		router:    mux.NewRouter().StrictSlash(true),
+		sessionManager: NewSessionManager(),
 	}
 
 	m.addRoutes()
@@ -70,13 +72,31 @@ func NewManager(connector connector, manager *manager.Manager, mp *mp.Manager) *
 	return m
 }
 
-// Listen запускает сервер на указанном порту.
+// Listen запускает сервер на указанном порту.
+// Listen запускает сервер на указанном порту.
 func (m *Manager) Listen(addr string) error {
 	log.Println("API started on addr", addr)
 
+	// Оборачиваем роутер в CORS обработчик
+	corsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Устанавливаем CORS заголовки для всех запросов
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		
+		// Обрабатываем preflight запросы
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		// Передаём запрос дальше в роутер
+		m.router.ServeHTTP(w, r)
+	})
+
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      m.router,
+		Handler:      corsHandler,  // используем обёртку вместо m.router
 		ReadTimeout:  defaultReadTimeout,
 		WriteTimeout: defaultWriteTimeout,
 		IdleTimeout:  defaultIdleTimeout,
@@ -91,12 +111,35 @@ func (m *Manager) addRoutes() {
 		routePost("/stub/post/", m.hndlrStubPost, m.wrapContentTypeJSON),
 
 		routeGet("/api/wsup/v1/cvetango", m.hndlrCvetangoJoin),
+		routeGet("/api/v1/stub/get", m.hndlrStubGet),
+		routePost("/api/v1/stub/post", m.hndlrStubPost, m.wrapContentTypeJSON),
+		//routeGet("/api/v1/hello", m.hndlrHello),
+		routeGet("/api/v1/graph", m.hndlrGraph),
+		routeGet("/api/v1/isomorphism/round", m.hndlrIsomorphismRound),
+		routePost("/api/v1/isomorphism/start", m.hndlrStartGame),
+		//routePost("/api/v1/isomorphism/start", m.hndlrCheckIsomorphism, m.wrapContentTypeJSON), // новый маршрут
+		//routePost("/api/v1/isomorphism/submit", m.hndlrSubmitAnswer, m.wrapContentTypeJSON),
+		routePost("/api/v1/isomorphism/submit", m.hndlrSubmitAnswer),
+		routeGet("/api/v1/debug/sessions", m.hndlrDebugSessions),
+		routePost("/api/v1/isomorphism/end", m.hndlrEndGame),
+		routePost("/api/v1/isomorphism/confirm", m.hndlrConfirm),
+		routeGet("/api/v1/find_way/start", m.hndlrFindWayStart),
+		routePost("/api/v1/find_way/start", m.hndlrFindWayStart),
+		routePost("/api/v1/find_way/submit", m.hndlrFindWaySubmit),
+		routePost("/api/v1/find_way/confirm", m.hndlrFindWayConfirm),
+		routePost("/api/v1/find_way/end", m.hndlrFindWayEnd),
+		routePost("/api/v1/escape/start", m.hndlrEscapeStart),
+		routePost("/api/v1/escape/submit", m.hndlrEscapeSubmit),
+		routePost("/api/v1/escape/confirm", m.hndlrEscapeConfirm),
+		routePost("/api/v1/escape/end", m.hndlrEscapeEnd),
 	})
+
+	
 }
 
 // addHandlers добавляет пути и обработчики запросов в мультиплексор (mux).
 func (m *Manager) addHandlers(routes []route) {
-	essentialWrappers := []wrapper{m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover}
+	essentialWrappers := []wrapper{m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover, m.wrapCORS}
 	for _, r := range routes {
 		var wrapper http.Handler = r.Handler
 		for _, w := range r.Wrappers {
