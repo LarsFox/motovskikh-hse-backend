@@ -23,8 +23,12 @@ const (
 func (m *Manager) RefreshToken(ctx context.Context, token string) (*entities.TokenPair, error) {
 	hash := auth.HashToken(token)
 	userID, err := m.db.GetRefreshToken(ctx, hash)
-	// TODO: switch ErrNotFound default
-	if err != nil {
+
+	switch {
+	case errors.Is(err, nil):
+	case errors.Is(err, entities.ErrNotFound):
+		return nil, ErrInvalidRefreshToken
+	default:
 		return nil, fmt.Errorf("get refresh token: %w", err)
 	}
 
@@ -45,7 +49,7 @@ func (m *Manager) RefreshToken(ctx context.Context, token string) (*entities.Tok
 func (m *Manager) ValidateAccess(tokenString string) (int64, error) {
 	userID, err := auth.ValidateAccessToken(tokenString, m.secretKey)
 	if err != nil {
-		return 0, err // TODO: fmt.Errorf
+		return 0, fmt.Errorf("validate access token: %w", err)
 	}
 
 	return userID, nil
