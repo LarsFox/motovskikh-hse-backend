@@ -36,7 +36,7 @@ func (c *Client) GetRefreshToken(ctx context.Context, hash string) (int64, error
 }
 
 func (c *Client) RefreshToken(ctx context.Context, hash, fresh string, expiresAt time.Time) error {
-	// TODO: tx — транзакция, чтобы удаление старого и сохранение нового токена выполнялись атомарно.
+	// Транзакция, чтобы удаление старого и сохранение нового токена выполнялись атомарно.
 	// Иначе при сбое между операциями пользователь потеряет доступ.
 	return c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
