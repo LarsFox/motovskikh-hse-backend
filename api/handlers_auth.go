@@ -40,7 +40,7 @@ func (m *Manager) hndlrRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := m.manager.RefreshToken(r.Context(), prms.RefreshToken)
+	tokens, err := m.manager.RefreshToken(r.Context(), *prms.RefreshToken)
 	if err != nil {
 		m.sendErrorPage(w, http.StatusUnauthorized)
 		return

@@ -32,7 +32,7 @@ func (m *Manager) hndlrVerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: наполнить из параметров
 	// TODO: switch err
-	if err := m.manager.VerifyEmail(r.Context(), prms.Email, prms.Code); err != nil {
+	if err := m.manager.VerifyEmail(r.Context(), *prms.Email, *prms.Code); err != nil {
 		m.sendErrorPage(w, http.StatusBadRequest)
 		return
 	}

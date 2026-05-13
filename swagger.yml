@@ -100,8 +100,13 @@ definitions:
         url:
           type: string
 
-  # TODO: по аналогии с RegisterV1Request
-  # RefreshTokenV1Request:
+  RefreshTokenV1Request:
+    type: object
+    required:
+      - refresh_token
+    properties:
+      refresh_token:
+        type: string
 
   RegisterV1Request:
     type: object
@@ -326,8 +331,16 @@ definitions:
       message:
         type: string
 
-  # TODO: по аналогии с RegisterV1Request
-  # VerifyEmailV1Request:
+  VerifyEmailV1Request:
+    type: object
+    required:
+      - email
+      - code
+    properties:
+      email:
+        type: string
+      code:
+        type: string
 
   WorkshopDeleteRequest:
     type: object
