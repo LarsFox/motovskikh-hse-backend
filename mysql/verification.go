@@ -38,32 +38,69 @@ func (c *Client) GetValidCode(ctx context.Context, userID int64, code string) (*
 		userID, code, time.Now(),
 	).First(&vc).Error
 
-	// TODO: переделать на свич
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	switch {
+	case errors.Is(err, nil):
+	case errors.Is(err, gorm.ErrRecordNotFound):
 		return nil, entities.ErrNotFound
-	}
-	if err != nil {
+	default:
 		return nil, fmt.Errorf("get valid code: %w", err)
 	}
 
-	// TODO: заполнить.
-	return &entities.VerificationCode{}, nil
+	return &entities.VerificationCode{
+		UserID:    vc.UserID,
+		Code:      vc.Code,
+		ExpiresAt: vc.ExpiresAt,
+	}, nil
 }
 
 func (c *Client) VerifyEmail(ctx context.Context, email, code string) error {
-	// TODO: c.db.Begin() // defer tx.Rollback() // tx.Commit()
-	// В одной тразнакции ищем пользователя с кодом.
-	// Если есть непроверенный имейл, верифицируем.
-	// Если есть проверенный имейл, возвращаем ErrInvalidInput.
-	// Если нет ничего, возвращаем ErrNotFound.
-	// В одной транзакции обновлять флаг верификации и удалять код.
-	userID := 0
+	return c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// В одной тразнакции ищем пользователя с кодом.
+		u := &user{}
+		err := tx.Where("email = ?", email).First(u).Error
 
-	err := c.db.Model(&user{}).
-		Where("id = ?", userID).
-		Update("email_verified", true).Error
-	if err != nil {
-		return fmt.Errorf("update email verified: %w", err)
-	}
-	return nil
+		switch {
+		case errors.Is(err, nil):
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return entities.ErrNotFound
+		default:
+			return fmt.Errorf("get user: %w", err)
+		}
+
+		// Проверяем что email не подтверждён
+		// Если есть проверенный имейл, возвращаем ErrInvalidInput
+		if u.EmailVerified {
+			return entities.ErrInvalidInput
+		}
+
+		// Проверяем код
+		vc := &verificationCode{}
+		err = tx.Where(
+			"user_id = ? AND code = ? AND expires_at > ?",
+			u.ID, code, time.Now(),
+		).First(vc).Error
+
+		// Если есть непроверенный имейл, верифицируем.
+		// Если нет ничего, возвращаем ErrNotFound.
+		// В одной транзакции обновлять флаг верификации и удалять код.
+		switch {
+		case errors.Is(err, nil):
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return entities.ErrNotFound
+		default:
+			return fmt.Errorf("get verification code: %w", err)
+		}
+
+		// Подтверждаем email
+		if err := tx.Model(u).Update("email_verified", true).Error; err != nil {
+			return fmt.Errorf("update email verified: %w", err)
+		}
+
+		// Удаляем использованный код
+		if err := tx.Delete(vc).Error; err != nil {
+			return fmt.Errorf("delete verification code: %w", err)
+		}
+
+		return nil
+	})
 }
