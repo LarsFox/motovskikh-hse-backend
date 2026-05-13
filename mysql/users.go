@@ -21,6 +21,15 @@ type user struct {
 }
 
 func (c *Client) CheckExistingEmail(ctx context.Context, email string) (*entities.User, error) {
+	u := &user{}
+	err := c.db.Where("email = ?", email).First(&u).Error
+	switch {
+	case errors.Is(err, nil):
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return nil, entities.ErrNotFound
+	default:
+		return nil, fmt.Errorf("check existing email: %w", err)
+	}
 	return nil, entities.ErrNotFound
 }
 
