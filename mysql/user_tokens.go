@@ -22,7 +22,7 @@ type refreshToken struct {
 func (c *Client) GetRefreshToken(ctx context.Context, hash string) (int64, error) {
 	token := &refreshToken{}
 	err := c.db.Where(
-		"hash = ? = ? AND expires_at > ?",
+		"hash = ? AND expires_at > ?",
 		hash, time.Now(),
 	).First(token).Error
 
@@ -36,25 +36,43 @@ func (c *Client) GetRefreshToken(ctx context.Context, hash string) (int64, error
 }
 
 func (c *Client) RefreshToken(ctx context.Context, hash, fresh string, expiresAt time.Time) error {
-	// TODO: tx.
-	token := &refreshToken{}
-	err := c.db.Where(
-		"hash = ? = ? AND expires_at > ?",
-		hash, time.Now(),
-	).First(token).Error
+	// TODO: tx — транзакция, чтобы удаление старого и сохранение нового токена выполнялись атомарно.
+	// Иначе при сбое между операциями пользователь потеряет доступ.
+	return c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
-	// TODO: switch
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return entities.ErrNotFound
-	}
-	if err != nil {
-		return fmt.Errorf("get refresh token: %w", err)
-	}
+		token := &refreshToken{}
+		err := tx.Where(
+			"hash = ? AND expires_at > ?",
+			hash, time.Now(),
+		).First(token).Error
 
-	// TODO: delete used token
-	// TODO: save fresh token
+		switch {
+		case errors.Is(err, nil):
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return entities.ErrNotFound
+		default:
+			return fmt.Errorf("get refresh token: %w", err)
+		}
 
-	return nil
+		// Удаляем старый токен
+		if err := tx.Delete(token).Error; err != nil {
+			return fmt.Errorf("delete old token: %w", err)
+		}
+
+		// Сохраняем новый токен
+		newToken := &refreshToken{
+			UserID:    token.UserID,
+			Hash:      fresh,
+			ExpiresAt: expiresAt,
+		}
+
+		if err := tx.Create(newToken).Error; err != nil {
+			return fmt.Errorf("save fresh token: %w", err)
+		}
+
+		return nil
+
+	})
 }
 
 func (c *Client) DeleteExpired() error {
