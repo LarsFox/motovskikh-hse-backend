@@ -24,7 +24,7 @@ func (c *Client) SaveVerificationCode(ctx context.Context, code *entities.Verifi
 		Code:      code.Code,
 		ExpiresAt: code.ExpiresAt,
 	}
-	if err := c.db.WithContext(ctx).Save(vc).Error; err != nil {
+	if err := c.db.WithContext(ctx).Create(vc).Error; err != nil {
 		return fmt.Errorf("create verification code: %w", err)
 	}
 	return nil
@@ -97,7 +97,7 @@ func (c *Client) VerifyEmail(ctx context.Context, email, code string) error {
 		}
 
 		// Удаляем использованный код
-		if err := tx.Delete(vc).Error; err != nil {
+		if err := tx.Where("user_id = ? AND code = ?", u.ID, code).Delete(&verificationCode{}).Error; err != nil {
 			return fmt.Errorf("delete verification code: %w", err)
 		}
 

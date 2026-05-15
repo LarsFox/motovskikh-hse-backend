@@ -37,11 +37,15 @@ func (c *Client) CheckExistingEmail(ctx context.Context, email string) (*entitie
 	}, nil
 }
 
-func (c *Client) CreateUser(ctx context.Context, user *entities.User) error {
-	if err := c.db.WithContext(ctx).Save(user).Error; err != nil {
+func (c *Client) CreateUser(ctx context.Context, u *entities.User) error {
+	internal := &user{
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+	}
+	if err := c.db.WithContext(ctx).Create(internal).Error; err != nil {
 		return fmt.Errorf("create user: %w", err)
 	}
-
+	u.ID = internal.ID
 	return nil
 }
 

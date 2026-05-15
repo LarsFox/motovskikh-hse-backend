@@ -10,12 +10,13 @@ import (
 
 func (m *Manager) hndlrRegister(w http.ResponseWriter, r *http.Request) {
 	prms := &models.RegisterV1Request{}
-	if err := unmarshalParams(r, prms); err != nil {
-		m.sendErrorPage(w, http.StatusBadRequest) // 400
+	err := unmarshalParams(r, prms)
+	if err != nil {
+		m.sendErrorPage(w, http.StatusBadRequest)
 		return
 	}
 
-	err := m.manager.Register(r.Context(), *prms.Email, *prms.Password)
+	err = m.manager.Register(r.Context(), *prms.Email, *prms.Password)
 	switch {
 	case errors.Is(err, nil):
 	case errors.Is(err, entities.ErrInvalidInput):
