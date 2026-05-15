@@ -76,7 +76,6 @@ func (c *Client) RefreshToken(ctx context.Context, hash, fresh string, expiresAt
 }
 
 func (c *Client) DeleteExpired() error {
-	// TODO: cron task
 	err := c.db.Where("expires_at < ?", time.Now()).
 		Delete(&refreshToken{}).Error
 	if err != nil {

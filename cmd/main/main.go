@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/vrischmann/envconfig"
 
@@ -51,6 +52,16 @@ func main() {
 			cfg.JWT.Secret,
 		),
 	)
+
+	// Очистка истёкших refresh токенов раз в сутки
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		for range ticker.C {
+			if err := dbClient.DeleteExpired(); err != nil {
+				log.Printf("delete expired tokens: %v", err)
+			}
+		}
+	}()
 
 	check(publicAPIManager.Listen(cfg.Web.Addr))
 }
