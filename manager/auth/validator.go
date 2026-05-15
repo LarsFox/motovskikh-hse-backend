@@ -17,8 +17,6 @@ var (
 	emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 )
 
-// TODO: написать тесты на каждую экспортируемую функцию этого пакета.
-
 func ValidateEmail(email string) bool {
 	email = strings.TrimSpace(email)
 	if email == "" {
