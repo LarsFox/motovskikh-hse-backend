@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/LarsFox/motovskikh-hse-backend/entities"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 )
 
@@ -111,4 +112,25 @@ func (m *Manager) send(w http.ResponseWriter, data any) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		notify(err)
 	}
+}
+
+// sendTokens for cookie
+func (m *Manager) sendTokens(w http.ResponseWriter, tokens *entities.TokenPair) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    tokens.AccessToken,
+		HttpOnly: true,
+		Path:     "/",
+		MaxAge:   900,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    tokens.RefreshToken,
+		HttpOnly: true,
+		Path:     "/api/auth/refresh",
+		MaxAge:   365 * 24 * 60 * 60,
+	})
+
+	m.send(w, nil)
 }

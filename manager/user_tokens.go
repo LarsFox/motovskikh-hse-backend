@@ -54,3 +54,22 @@ func (m *Manager) ValidateAccess(tokenString string) (int64, error) {
 
 	return userID, nil
 }
+
+// GenerateTokensByEmail выдаёт пару токенов по email без проверки пароля.
+// Используется после верификации email.
+func (m *Manager) GenerateTokensByEmail(ctx context.Context, email string) (*entities.TokenPair, error) {
+	user, err := m.db.GetUserByEmail(ctx, email)
+	switch {
+	case errors.Is(err, nil):
+	case errors.Is(err, entities.ErrNotFound):
+		return nil, entities.ErrInvalidInput
+	default:
+		return nil, fmt.Errorf("get user by email: %w", err)
+	}
+
+	tokens, err := auth.GeneratePair(user.ID, m.secretKey)
+	if err != nil {
+		return nil, fmt.Errorf("generate pair: %w", err)
+	}
+	return tokens, nil
+}

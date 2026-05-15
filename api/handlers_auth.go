@@ -28,8 +28,7 @@ func (m *Manager) hndlrEnjoy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: найти ответ — передавать через куку или через заголовок?
-	m.send(w, tokens)
+	m.sendTokens(w, tokens)
 }
 
 // hndlrRefreshToken обновляет аксес-токен по рефреш-токену.
@@ -46,8 +45,5 @@ func (m *Manager) hndlrRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m.send(w, &models.TokenPair{
-		AccessToken:  &tokens.AccessToken,
-		RefreshToken: &tokens.RefreshToken,
-	})
+	m.sendTokens(w, tokens)
 }

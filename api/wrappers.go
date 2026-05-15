@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -50,20 +51,18 @@ func wrapRecover(h http.Handler) http.Handler {
 // wrapAuth проверяет JWT токен и стоит на страже маршрутов личного кабинета.
 func (m *Manager) wrapAuth(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
+		cookie, err := r.Cookie("access_token")
+		switch {
+		case errors.Is(err, nil):
+		default:
 			m.sendErrorPage(w, http.StatusUnauthorized)
 			return
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		if tokenString == authHeader {
-			m.sendErrorPage(w, http.StatusUnauthorized)
-			return
-		}
-
-		userID, err := m.manager.ValidateAccess(tokenString)
-		if err != nil {
+		userID, err := m.manager.ValidateAccess(cookie.Value)
+		switch {
+		case errors.Is(err, nil):
+		default:
 			m.sendErrorPage(w, http.StatusUnauthorized)
 			return
 		}
