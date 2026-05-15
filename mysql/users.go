@@ -22,7 +22,7 @@ type user struct {
 
 func (c *Client) CheckExistingEmail(ctx context.Context, email string) (*entities.User, error) {
 	u := &user{}
-	err := c.db.Where("email = ?", email).First(&u).Error
+	err := c.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
 	switch {
 	case errors.Is(err, nil):
 	case errors.Is(err, gorm.ErrRecordNotFound):
@@ -48,7 +48,7 @@ func (c *Client) CreateUser(ctx context.Context, user *entities.User) error {
 // GetUserByEmail ищет пользователя по email.
 func (c *Client) GetUserByEmail(ctx context.Context, email string) (*entities.User, error) {
 	u := &user{}
-	err := c.db.Where("email = ? AND email_verified = true", email).First(&u).Error
+	err := c.db.WithContext(ctx).Where("email = ? AND email_verified = true", email).First(&u).Error
 	switch {
 	case errors.Is(err, nil):
 	case errors.Is(err, gorm.ErrRecordNotFound):

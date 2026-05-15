@@ -24,7 +24,7 @@ func (c *Client) SaveVerificationCode(ctx context.Context, code *entities.Verifi
 		Code:      code.Code,
 		ExpiresAt: code.ExpiresAt,
 	}
-	if err := c.db.Save(vc).Error; err != nil {
+	if err := c.db.WithContext(ctx).Save(vc).Error; err != nil {
 		return fmt.Errorf("create verification code: %w", err)
 	}
 	return nil
@@ -33,7 +33,7 @@ func (c *Client) SaveVerificationCode(ctx context.Context, code *entities.Verifi
 // GetValidCode ищет действующий код.
 func (c *Client) GetValidCode(ctx context.Context, userID int64, code string) (*entities.VerificationCode, error) {
 	vc := &verificationCode{}
-	err := c.db.Where(
+	err := c.db.WithContext(ctx).Where(
 		"user_id = ? AND code = ? AND expires_at > ?",
 		userID, code, time.Now(),
 	).First(&vc).Error

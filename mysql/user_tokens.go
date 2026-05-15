@@ -21,7 +21,7 @@ type refreshToken struct {
 // GetRefreshToken ищет действующий refresh токен по хешу.
 func (c *Client) GetRefreshToken(ctx context.Context, hash string) (int64, error) {
 	token := &refreshToken{}
-	err := c.db.Where(
+	err := c.db.WithContext(ctx).Where(
 		"hash = ? AND expires_at > ?",
 		hash, time.Now(),
 	).First(token).Error
@@ -39,7 +39,6 @@ func (c *Client) RefreshToken(ctx context.Context, hash, fresh string, expiresAt
 	// Транзакция, чтобы удаление старого и сохранение нового токена выполнялись атомарно.
 	// Иначе при сбое между операциями пользователь потеряет доступ.
 	return c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-
 		token := &refreshToken{}
 		err := tx.Where(
 			"hash = ? AND expires_at > ?",
@@ -71,7 +70,6 @@ func (c *Client) RefreshToken(ctx context.Context, hash, fresh string, expiresAt
 		}
 
 		return nil
-
 	})
 }
 

@@ -42,7 +42,7 @@ func (m *Manager) Register(ctx context.Context, email, password string) error {
 	// Создаём пользователя в БД.
 	user := &entities.User{
 		Email:        email,
-		PasswordHash: string(hash),
+		PasswordHash: hash,
 	}
 	if err := m.db.CreateUser(ctx, user); err != nil {
 		return fmt.Errorf("create user: %w", err)

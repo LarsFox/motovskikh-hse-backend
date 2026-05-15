@@ -16,6 +16,8 @@ const (
 	defaultReadTimeout  = time.Second * 15
 	defaultWriteTimeout = time.Second * 30
 	defaultIdleTimeout  = time.Second * 30
+	accessTokenMaxAge   = 900
+	refreshTokenMaxAge  = 365 * 24 * 60 * 60
 )
 
 // Manager is an API manager and listener.
@@ -32,6 +34,7 @@ type route struct {
 	Wrappers []wrapper
 }
 
+//nolint:unused
 func routeGet(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
 	return newRoute(http.MethodGet, path, handler, wrappers...)
 }
@@ -114,22 +117,26 @@ func (m *Manager) send(w http.ResponseWriter, data any) {
 	}
 }
 
-// sendTokens for cookie
+// sendTokens for cookie.
 func (m *Manager) sendTokens(w http.ResponseWriter, tokens *entities.TokenPair) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    tokens.AccessToken,
+		Secure:   true,
 		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 		Path:     "/",
-		MaxAge:   900,
+		MaxAge:   accessTokenMaxAge,
 	})
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    tokens.RefreshToken,
+		Secure:   true,
 		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 		Path:     "/api/auth/refresh",
-		MaxAge:   365 * 24 * 60 * 60,
+		MaxAge:   refreshTokenMaxAge,
 	})
 
 	m.send(w, nil)

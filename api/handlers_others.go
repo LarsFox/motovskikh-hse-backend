@@ -5,8 +5,6 @@ import (
 	"net/http"
 )
 
-const keyMessage = "message"
-
 // sendErrorPage возвращает страницу ошибки.
 func (m *Manager) sendErrorPage(w http.ResponseWriter, code int) {
 	w.WriteHeader(code)

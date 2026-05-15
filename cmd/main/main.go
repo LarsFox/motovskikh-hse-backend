@@ -16,6 +16,8 @@ import (
 // Пустое значение переменной подменяется с помощью флага -ldflags во время сборки.
 var Version string
 
+const CleanInterval = 24
+
 type config struct {
 	DB  *mysql.Config
 	Web *webConfig
@@ -55,7 +57,7 @@ func main() {
 
 	// Очистка истёкших refresh токенов раз в сутки
 	go func() {
-		ticker := time.NewTicker(24 * time.Hour)
+		ticker := time.NewTicker(CleanInterval * time.Hour)
 		for range ticker.C {
 			if err := dbClient.DeleteExpired(); err != nil {
 				log.Printf("delete expired tokens: %v", err)
