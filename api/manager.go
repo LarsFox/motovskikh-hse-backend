@@ -22,6 +22,7 @@ const (
 
 // Manager is an API manager and listener.
 type Manager struct {
+	docs    string
 	manager *manager.Manager
 	router  *mux.Router
 }
@@ -55,18 +56,21 @@ func newRoute(method, path string, handler http.HandlerFunc, wrappers ...wrapper
 	}
 }
 
-func NewManager(manager *manager.Manager) *Manager {
+func NewManager(manager *manager.Manager, docs string) *Manager {
 	m := &Manager{
+		docs:    docs,
 		manager: manager,
 		router:  mux.NewRouter().StrictSlash(true),
 	}
 
 	m.addRoutes()
 
-	// Раздача статических файлов из internal/web
-	m.router.PathPrefix("/").Handler(
-		http.FileServer(http.Dir("internal/web")),
-	)
+	filehandler := http.FileServer(http.Dir(m.docs))
+	for _, wrapper := range []wrapper{m.wrapBodyMaxSize, m.wrapEasterEggHeader, wrapRecover} {
+		filehandler = wrapper(filehandler)
+	}
+
+	m.router.PathPrefix("/").Handler(filehandler)
 
 	return m
 }

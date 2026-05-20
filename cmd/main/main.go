@@ -22,7 +22,8 @@ type config struct {
 }
 
 type webConfig struct {
-	Addr string `envconfig:"default=:8090"`
+	Addr     string `envconfig:"default=:8090"`
+	DocsPath string
 }
 
 type jwtConfig struct {
@@ -51,6 +52,7 @@ func main() {
 			&emailer.Client{},
 			cfg.JWT.Secret,
 		),
+		cfg.Web.DocsPath,
 	)
 
 	check(publicAPIManager.Listen(cfg.Web.Addr))
