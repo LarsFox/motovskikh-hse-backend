@@ -3,10 +3,15 @@ package mysql
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
+
+type stat interface {
+	Query(string, string, time.Duration)
+}
 
 // Config — конфигурация клиента.
 type Config struct {
@@ -26,7 +31,8 @@ func (c *Config) connection() string {
 }
 
 type Client struct {
-	db *gorm.DB
+	db   *gorm.DB
+	stat stat
 }
 
 func (c *Client) DB() *gorm.DB {
@@ -47,4 +53,8 @@ func NewClient(cfg *Config) (*Client, error) {
 	// db = db.Debug()
 	d.SetMaxOpenConns(cfg.MaxConn)
 	return &Client{db: db}, nil
+}
+
+func (c *Client) track(name, where string, t time.Time) {
+	c.stat.Query(name, where, time.Since(t))
 }

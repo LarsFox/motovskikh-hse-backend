@@ -1,13 +1,16 @@
 package entities
 
-import "time"
+// MapObject — объединенный с областью объект.
+type MapObject struct {
+	Capital  *Object `json:"Capital,omitempty"`
+	Name     string
+	Object   *Object
+	Params   map[string]any `json:"Params,omitempty"`
+	Src      string
+	Subclass string `json:"Subclass,omitempty"`
+}
 
-type Test struct {
-	ID             int64
-	UserID         int64
-	Title          string
-	QuestionsCount int
-	Rating         float64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+type Object struct {
+	I18n   map[string]string
+	Params map[string]any `json:"Params,omitempty"`
 }
