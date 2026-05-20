@@ -2,7 +2,7 @@
 .vscode
 .DS_Store
 .env
-
+migrations/go.sum
 goserver
 __debug_bin*
 
