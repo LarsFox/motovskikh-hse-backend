@@ -92,11 +92,9 @@ func (m *Manager) addRoutes() {
 		routePost("/api/auth/verify-email", m.hndlrVerifyEmail, m.wrapContentTypeJSON),
 		routePost("/api/auth/sign-in", m.hndlrEnjoy, m.wrapContentTypeJSON),
 		routePost("/api/auth/refresh", m.hndlrRefreshToken, m.wrapContentTypeJSON),
-		routeGet("/api/tests", m.hndlrGetTests, m.wrapAuth),
-		routePost("/api/tests", m.hndlrCreateTest, m.wrapAuth, m.wrapContentTypeJSON),
-		routeDelete("/api/tests/{id}", m.hndlrDeleteTest, m.wrapAuth),
 		routePost("/api/auth/resend-code", m.hndlrResendCode, m.wrapContentTypeJSON),
 		routePost("/api/auth/logout", m.hndlrFarewell),
+		routePost("/api/v1/workshop/my/", m.hndlrListUserTests, m.wrapAuth, m.wrapContentTypeJSON),
 	})
 }
 

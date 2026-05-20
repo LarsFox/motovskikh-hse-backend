@@ -21,9 +21,7 @@ type userDB interface {
 }
 
 type testDB interface {
-	GetTests(ctx context.Context, userID int64) ([]*entities.Test, error)
-	CreateTest(ctx context.Context, t *entities.Test) error
-	DeleteTest(ctx context.Context, id, userID int64) error
+	WorkshopListUserTests(ctx context.Context, userID int64) ([]*entities.WorkshopTest, error)
 	DeleteExpired() error
 }
 
