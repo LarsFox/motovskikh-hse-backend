@@ -69,6 +69,23 @@ definitions:
         additionalProperties:
           type: object
 
+  CreateTestV1Request:
+    type: object
+    required:
+      - title
+    properties:
+      title:
+        type: string
+
+  DeleteTestV1Request:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: integer
+        format: int64
+
   EnjoyRequest:
     type: object
     required:
@@ -319,6 +336,14 @@ definitions:
       message:
         type: string
       note:
+        type: string
+  
+  ResendCodeV1Request:
+    type: object
+    required:
+      - email
+    properties:
+      email:
         type: string
 
   SendMessageRequest:
