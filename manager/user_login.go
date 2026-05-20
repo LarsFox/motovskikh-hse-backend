@@ -10,7 +10,7 @@ import (
 )
 
 func (m *Manager) Enjoy(ctx context.Context, email, password string) (*entities.TokenPair, error) {
-	user, err := m.db.GetUserByEmail(ctx, email)
+	user, err := m.userDB.GetUserByEmail(ctx, email)
 	switch {
 	case errors.Is(err, nil):
 	case errors.Is(err, entities.ErrNotFound):

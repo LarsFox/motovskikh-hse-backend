@@ -34,9 +34,12 @@ type route struct {
 	Wrappers []wrapper
 }
 
-//nolint:unused
 func routeGet(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
 	return newRoute(http.MethodGet, path, handler, wrappers...)
+}
+
+func routeDelete(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
+	return newRoute(http.MethodDelete, path, handler, wrappers...)
 }
 
 func routePost(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
@@ -59,6 +62,11 @@ func NewManager(manager *manager.Manager) *Manager {
 	}
 
 	m.addRoutes()
+
+	// Раздача статических файлов из internal/web
+	m.router.PathPrefix("/").Handler(
+		http.FileServer(http.Dir("internal/web")),
+	)
 
 	return m
 }
@@ -84,6 +92,11 @@ func (m *Manager) addRoutes() {
 		routePost("/api/auth/verify-email", m.hndlrVerifyEmail, m.wrapContentTypeJSON),
 		routePost("/api/auth/sign-in", m.hndlrEnjoy, m.wrapContentTypeJSON),
 		routePost("/api/auth/refresh", m.hndlrRefreshToken, m.wrapContentTypeJSON),
+		routeGet("/api/tests", m.hndlrGetTests, m.wrapAuth),
+		routePost("/api/tests", m.hndlrCreateTest, m.wrapAuth, m.wrapContentTypeJSON),
+		routeDelete("/api/tests/{id}", m.hndlrDeleteTest, m.wrapAuth),
+		routePost("/api/auth/resend-code", m.hndlrResendCode, m.wrapContentTypeJSON),
+		routePost("/api/auth/logout", m.hndlrFarewell),
 	})
 }
 

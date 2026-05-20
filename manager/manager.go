@@ -2,12 +2,15 @@ package manager
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/LarsFox/motovskikh-hse-backend/entities"
 )
 
-type db interface {
+const cleanInterval = 24 * time.Hour
+
+type userDB interface {
 	CheckExistingEmail(ctx context.Context, email string) (*entities.User, error)
 	CreateUser(ctx context.Context, user *entities.User) error
 	GetUserByEmail(ctx context.Context, email string) (*entities.User, error)
@@ -17,24 +20,45 @@ type db interface {
 	VerifyEmail(ctx context.Context, email, code string) error
 }
 
+type testDB interface {
+	GetTests(ctx context.Context, userID int64) ([]*entities.Test, error)
+	CreateTest(ctx context.Context, t *entities.Test) error
+	DeleteTest(ctx context.Context, id, userID int64) error
+	DeleteExpired() error
+}
+
 type emailer interface {
 	SendEmail(ctx context.Context, to, subj, msg string) error
 }
 
 type Manager struct {
-	db        db
+	userDB    userDB
+	testDB    testDB
 	emailer   emailer
 	secretKey []byte
 }
 
 func New(
-	db db,
+	userDB userDB,
+	testDB testDB,
 	emailer emailer,
 	jwtSecret string,
 ) *Manager {
-	return &Manager{
-		db:        db,
+	m := &Manager{
+		userDB:    userDB,
+		testDB:    testDB,
 		emailer:   emailer,
 		secretKey: []byte(jwtSecret),
 	}
+
+	go func() {
+		ticker := time.NewTicker(cleanInterval)
+		for range ticker.C {
+			if err := testDB.DeleteExpired(); err != nil {
+				log.Println("delete expired tokens:", err)
+			}
+		}
+	}()
+
+	return m
 }

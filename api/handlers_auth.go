@@ -47,3 +47,27 @@ func (m *Manager) hndlrRefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	m.sendTokens(w, tokens)
 }
+
+func (m *Manager) hndlrFarewell(w http.ResponseWriter, _ *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   -1,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/api/auth/refresh",
+		MaxAge:   -1,
+	})
+
+	m.send(w, nil)
+}

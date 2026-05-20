@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"time"
 
 	"github.com/vrischmann/envconfig"
 
@@ -15,8 +14,6 @@ import (
 // Version — версия приложения.
 // Пустое значение переменной подменяется с помощью флага -ldflags во время сборки.
 var Version string
-
-const CleanInterval = 24
 
 type config struct {
 	DB  *mysql.Config
@@ -50,20 +47,11 @@ func main() {
 	publicAPIManager := api.NewManager(
 		manager.New(
 			dbClient,
+			dbClient,
 			&emailer.Client{},
 			cfg.JWT.Secret,
 		),
 	)
-
-	// Очистка истёкших refresh токенов раз в сутки
-	go func() {
-		ticker := time.NewTicker(CleanInterval * time.Hour)
-		for range ticker.C {
-			if err := dbClient.DeleteExpired(); err != nil {
-				log.Printf("delete expired tokens: %v", err)
-			}
-		}
-	}()
 
 	check(publicAPIManager.Listen(cfg.Web.Addr))
 }

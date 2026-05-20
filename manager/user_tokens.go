@@ -22,7 +22,7 @@ const (
 
 func (m *Manager) RefreshToken(ctx context.Context, token string) (*entities.TokenPair, error) {
 	hash := auth.HashToken(token)
-	userID, err := m.db.GetRefreshToken(ctx, hash)
+	userID, err := m.userDB.GetRefreshToken(ctx, hash)
 
 	switch {
 	case errors.Is(err, nil):
@@ -38,7 +38,7 @@ func (m *Manager) RefreshToken(ctx context.Context, token string) (*entities.Tok
 	}
 
 	// Помечаем старый токен использованным.
-	if err := m.db.RefreshToken(ctx, hash, fresh.RefreshToken, time.Now().Add(refreshTokenTTL)); err != nil {
+	if err := m.userDB.RefreshToken(ctx, hash, fresh.RefreshToken, time.Now().Add(refreshTokenTTL)); err != nil {
 		return nil, fmt.Errorf("mark token as used: %w", err)
 	}
 
@@ -58,7 +58,7 @@ func (m *Manager) ValidateAccess(tokenString string) (int64, error) {
 // GenerateTokensByEmail выдаёт пару токенов по email без проверки пароля.
 // Используется после верификации email.
 func (m *Manager) GenerateTokensByEmail(ctx context.Context, email string) (*entities.TokenPair, error) {
-	user, err := m.db.GetUserByEmail(ctx, email)
+	user, err := m.userDB.GetUserByEmail(ctx, email)
 	switch {
 	case errors.Is(err, nil):
 	case errors.Is(err, entities.ErrNotFound):

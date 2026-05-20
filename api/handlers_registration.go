@@ -42,9 +42,11 @@ func (m *Manager) hndlrVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	err := m.manager.VerifyEmail(r.Context(), *prms.Email, *prms.Code)
 	switch {
 	case errors.Is(err, nil):
-	case errors.Is(err, entities.ErrInvalidInput), errors.Is(err, entities.ErrNotFound):
+	case errors.Is(err, entities.ErrInvalidInput):
 		m.sendErrorPage(w, http.StatusBadRequest)
 		return
+	case errors.Is(err, entities.ErrNotFound):
+		m.sendErrorPage(w, http.StatusNotFound)
 	default:
 		notify(err)
 		m.sendErrorPage(w, http.StatusInternalServerError)
@@ -60,4 +62,26 @@ func (m *Manager) hndlrVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.sendTokens(w, tokens)
+}
+
+func (m *Manager) hndlrResendCode(w http.ResponseWriter, r *http.Request) {
+	prms := &models.ResendCodeV1Request{}
+	if err := unmarshalParams(r, prms); err != nil {
+		m.sendErrorPage(w, http.StatusBadRequest)
+		return
+	}
+
+	err := m.manager.ResendCode(r.Context(), *prms.Email)
+	switch {
+	case errors.Is(err, nil):
+	case errors.Is(err, entities.ErrInvalidInput):
+		m.sendErrorPage(w, http.StatusBadRequest)
+		return
+	default:
+		notify(err)
+		m.sendErrorPage(w, http.StatusInternalServerError)
+		return
+	}
+
+	m.send(w, nil)
 }

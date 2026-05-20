@@ -19,10 +19,15 @@ func (m *Manager) Register(ctx context.Context, email, password string) error {
 		return entities.ErrInvalidInput
 	}
 
+	// Проверка сложности пароля
+	if err := auth.ValidatePassword(password); err != nil {
+		return entities.ErrInvalidInput
+	}
+
 	// Если имейла нет, это новый пользователь, записываем его имейл, высылаем код.
 	// Если есть проверенный имейл, возвращаем entities.ErrInvalidInput, имейл уже занят.
 	// Если есть непроверенный имейл, перезаписываем и высылаем новый код.
-	existing, err := m.db.CheckExistingEmail(ctx, email)
+	existing, err := m.userDB.CheckExistingEmail(ctx, email)
 	switch {
 	case errors.Is(err, entities.ErrNotFound):
 	case errors.Is(err, nil):
@@ -44,7 +49,7 @@ func (m *Manager) Register(ctx context.Context, email, password string) error {
 		Email:        email,
 		PasswordHash: hash,
 	}
-	if err := m.db.CreateUser(ctx, user); err != nil {
+	if err := m.userDB.CreateUser(ctx, user); err != nil {
 		return fmt.Errorf("create user: %w", err)
 	}
 
@@ -54,7 +59,7 @@ func (m *Manager) Register(ctx context.Context, email, password string) error {
 
 // VerifyEmail подтверждает email пользователя.
 func (m *Manager) VerifyEmail(ctx context.Context, email, code string) error {
-	err := m.db.VerifyEmail(ctx, email, code)
+	err := m.userDB.VerifyEmail(ctx, email, code)
 	switch {
 	case errors.Is(err, nil):
 	case errors.Is(err, entities.ErrNotFound):
@@ -79,16 +84,29 @@ func (m *Manager) sendVerificationCode(ctx context.Context, userID int64, email 
 		Code:      code,
 		ExpiresAt: time.Now().Add(verificationCodeTTL),
 	}
-	if err := m.db.SaveVerificationCode(ctx, vc); err != nil {
+	if err := m.userDB.SaveVerificationCode(ctx, vc); err != nil {
 		return fmt.Errorf("save verification code: %w", err)
 	}
 
 	// Отправка кода на email.
-	link := fmt.Sprintf("http://localhost:8080/verify?email=%s&code=%s", email, code)
 	return m.emailer.SendEmail(ctx, email,
-		"Подтверждение email — Мастерская Мотовских",
+		"Подтверждение email в Мастерской Мотовских",
 		fmt.Sprintf(
-			"Подтвердите email, перейдя по ссылке:\n%s\n\nСсылка действует 1 час.", link,
-		),
+			"Ваш код подтверждения:\n%s\n\nКод действует 1 час.", code),
 	)
+}
+
+func (m *Manager) ResendCode(ctx context.Context, email string) error {
+	existing, err := m.userDB.CheckExistingEmail(ctx, email)
+	switch {
+	case errors.Is(err, entities.ErrNotFound):
+		return entities.ErrInvalidInput // пользователя нет
+	case errors.Is(err, nil):
+		if existing.EmailVerified {
+			return entities.ErrInvalidInput // уже подтверждён
+		}
+		return m.sendVerificationCode(ctx, existing.ID, existing.Email)
+	default:
+		return fmt.Errorf("check existing email: %w", err)
+	}
 }

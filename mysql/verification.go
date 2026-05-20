@@ -24,10 +24,17 @@ func (c *Client) SaveVerificationCode(ctx context.Context, code *entities.Verifi
 		Code:      code.Code,
 		ExpiresAt: code.ExpiresAt,
 	}
-	if err := c.db.WithContext(ctx).Create(vc).Error; err != nil {
-		return fmt.Errorf("create verification code: %w", err)
-	}
-	return nil
+	return c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Удаляем старые коды для этого пользователя
+		if err := tx.Where("user_id = ?", code.UserID).Delete(&verificationCode{}).Error; err != nil {
+			return fmt.Errorf("delete old codes: %w", err)
+		}
+
+		if err := tx.Create(vc).Error; err != nil {
+			return fmt.Errorf("create verification code: %w", err)
+		}
+		return nil
+	})
 }
 
 // GetValidCode ищет действующий код.
