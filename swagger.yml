@@ -97,6 +97,28 @@ definitions:
       pass:
         type: string
 
+  ForgotPasswordV1Request:
+    type: object
+    required:
+      - email
+    properties:
+      email:
+        type: string
+
+  ResetPasswordV1Request:
+    type: object
+    required:
+      - email
+      - code
+      - password
+    properties:
+      email:
+        type: string
+      code:
+        type: string
+      password:
+        type: string
+
   LobbyV1Request:
     type: object
     required:

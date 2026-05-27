@@ -18,6 +18,8 @@ type userDB interface {
 	RefreshToken(ctx context.Context, hash, fresh string, expiresAt time.Time) error
 	SaveVerificationCode(ctx context.Context, code *entities.VerificationCode) error
 	VerifyEmail(ctx context.Context, email, code string) error
+	UpdatePassword(ctx context.Context, userID int64, hash string) error
+	CheckAndDeleteCode(ctx context.Context, email, code string) error
 }
 
 type testDB interface {

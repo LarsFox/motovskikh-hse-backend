@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	ErrNotFound     = errors.New("something is not found")
-	ErrInvalidInput = errors.New("your input is invalid")
+	ErrNotFound         = errors.New("something is not found")
+	ErrInvalidInput     = errors.New("your input is invalid")
+	ErrEmailNotVerified = errors.New("your email is not verified")
 )
 
 // Notify сообщает в мониторинг об ошибке.

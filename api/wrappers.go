@@ -30,7 +30,6 @@ func (m *Manager) wrapBodyMaxSize(inner http.Handler) http.Handler {
 }
 
 // wrapEasterEggHeader добавляет ржомбу в заголовки.
-// nolint:canonicalheader
 func (m *Manager) wrapEasterEggHeader(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("hey", "what are you trying to find here")
@@ -49,11 +48,9 @@ func wrapRecover(h http.Handler) http.Handler {
 }
 
 // wrapAuth проверяет JWT токен и стоит на страже маршрутов личного кабинета.
-//
-//nolint:unused
 func (m *Manager) wrapAuth(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("access_token")
+		cookie, err := r.Cookie("fondantAuChocolat")
 		switch {
 		case errors.Is(err, nil):
 		default:

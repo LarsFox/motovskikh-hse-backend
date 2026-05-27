@@ -111,3 +111,38 @@ func (c *Client) VerifyEmail(ctx context.Context, email, code string) error {
 		return nil
 	})
 }
+
+// CheckAndDeleteCode проверяет код и удаляет его без изменения email_verified.
+// Используется для сброса пароля.
+func (c *Client) CheckAndDeleteCode(ctx context.Context, email, code string) error {
+	return c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		u := &user{}
+		err := tx.Where("email = ?", email).First(u).Error
+		switch {
+		case errors.Is(err, nil):
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return entities.ErrNotFound
+		default:
+			return fmt.Errorf("get user: %w", err)
+		}
+
+		vc := &verificationCode{}
+		err = tx.Where(
+			"user_id = ? AND code = ? AND expires_at > ?",
+			u.ID, code, time.Now(),
+		).First(vc).Error
+		switch {
+		case errors.Is(err, nil):
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return entities.ErrNotFound
+		default:
+			return fmt.Errorf("get verification code: %w", err)
+		}
+
+		if err := tx.Where("user_id = ? AND code = ?", u.ID, code).Delete(&verificationCode{}).Error; err != nil {
+			return fmt.Errorf("delete verification code: %w", err)
+		}
+
+		return nil
+	})
+}

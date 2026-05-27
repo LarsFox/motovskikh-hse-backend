@@ -68,3 +68,13 @@ func (c *Client) GetUserByEmail(ctx context.Context, email string) (*entities.Us
 		EmailVerified: u.EmailVerified,
 	}, nil
 }
+
+func (c *Client) UpdatePassword(ctx context.Context, userID int64, hash string) error {
+	err := c.db.WithContext(ctx).Model(&user{}).
+		Where("id = ?", userID).
+		Update("password_hash", hash).Error
+	if err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	return nil
+}

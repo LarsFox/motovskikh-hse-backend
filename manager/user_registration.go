@@ -12,28 +12,22 @@ import (
 
 const verificationCodeTTL = time.Hour
 
-// Register регистрирует нового пользователя.
 func (m *Manager) Register(ctx context.Context, email, password string) error {
-	// Валидация email
 	if !auth.ValidateEmail(email) {
 		return entities.ErrInvalidInput
 	}
 
-	// Проверка сложности пароля
+	// Checking password complexity
 	if err := auth.ValidatePassword(password); err != nil {
 		return entities.ErrInvalidInput
 	}
 
-	// Если имейла нет, это новый пользователь, записываем его имейл, высылаем код.
-	// Если есть проверенный имейл, возвращаем entities.ErrInvalidInput, имейл уже занят.
-	// Если есть непроверенный имейл, перезаписываем и высылаем новый код.
+	// If there is no the email, it is a new user. We should save him in DB and send a code.
+	// If the email exists but is not verified, send a code
 	existing, err := m.userDB.CheckExistingEmail(ctx, email)
 	switch {
 	case errors.Is(err, entities.ErrNotFound):
 	case errors.Is(err, nil):
-		if existing.EmailVerified {
-			return entities.ErrInvalidInput
-		}
 		return m.sendVerificationCode(ctx, existing.ID, existing.Email)
 	default:
 		return fmt.Errorf("check existing email: %w", err)
@@ -44,7 +38,7 @@ func (m *Manager) Register(ctx context.Context, email, password string) error {
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	// Создаём пользователя в БД.
+	// Create a user in DB
 	user := &entities.User{
 		Email:        email,
 		PasswordHash: hash,
@@ -53,11 +47,9 @@ func (m *Manager) Register(ctx context.Context, email, password string) error {
 		return fmt.Errorf("create user: %w", err)
 	}
 
-	// Генерация кода подтверждения.
 	return m.sendVerificationCode(ctx, user.ID, user.Email)
 }
 
-// VerifyEmail подтверждает email пользователя.
 func (m *Manager) VerifyEmail(ctx context.Context, email, code string) error {
 	err := m.userDB.VerifyEmail(ctx, email, code)
 	switch {
@@ -71,14 +63,14 @@ func (m *Manager) VerifyEmail(ctx context.Context, email, code string) error {
 	return nil
 }
 
-// sendVerificationCode (приватный метод) генерирует и отправляет ссылку с вшитым кодом подтверждения.
+// sendVerificationCode (private) generates and sendes 6 signed code.
 func (m *Manager) sendVerificationCode(ctx context.Context, userID int64, email string) error {
 	code, err := auth.GenerateVerificationCode()
 	if err != nil {
 		return fmt.Errorf("generate code: %w", err)
 	}
 
-	// Сохраняем код в БД, действует 1 час.
+	// Save the code, it will be valid for an hour
 	vc := &entities.VerificationCode{
 		UserID:    userID,
 		Code:      code,
@@ -88,7 +80,7 @@ func (m *Manager) sendVerificationCode(ctx context.Context, userID int64, email 
 		return fmt.Errorf("save verification code: %w", err)
 	}
 
-	// Отправка кода на email.
+	// Send by email
 	return m.emailer.SendEmail(ctx, email,
 		"Подтверждение email в Мастерской Мотовских",
 		fmt.Sprintf(
@@ -100,10 +92,10 @@ func (m *Manager) ResendCode(ctx context.Context, email string) error {
 	existing, err := m.userDB.CheckExistingEmail(ctx, email)
 	switch {
 	case errors.Is(err, entities.ErrNotFound):
-		return entities.ErrInvalidInput // пользователя нет
+		return entities.ErrInvalidInput // user does not exist
 	case errors.Is(err, nil):
 		if existing.EmailVerified {
-			return entities.ErrInvalidInput // уже подтверждён
+			return entities.ErrInvalidInput // already confirmed
 		}
 		return m.sendVerificationCode(ctx, existing.ID, existing.Email)
 	default:

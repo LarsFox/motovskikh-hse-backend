@@ -35,10 +35,12 @@ type route struct {
 	Wrappers []wrapper
 }
 
+//nolint:unused
 func routeGet(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
 	return newRoute(http.MethodGet, path, handler, wrappers...)
 }
 
+//nolint:unused
 func routeDelete(path string, handler http.HandlerFunc, wrappers ...wrapper) route {
 	return newRoute(http.MethodDelete, path, handler, wrappers...)
 }
@@ -92,13 +94,14 @@ func (m *Manager) Listen(addr string) error {
 
 func (m *Manager) addRoutes() {
 	m.addHandlers([]route{
-		routePost("/api/auth/register", m.hndlrRegister, m.wrapContentTypeJSON),
 		routePost("/api/auth/verify-email", m.hndlrVerifyEmail, m.wrapContentTypeJSON),
-		routePost("/api/auth/sign-in", m.hndlrEnjoy, m.wrapContentTypeJSON),
+		routePost("/api/auth/enjoy", m.hndlrEnjoy, m.wrapContentTypeJSON),
 		routePost("/api/auth/refresh", m.hndlrRefreshToken, m.wrapContentTypeJSON),
 		routePost("/api/auth/resend-code", m.hndlrResendCode, m.wrapContentTypeJSON),
 		routePost("/api/auth/logout", m.hndlrFarewell),
 		routePost("/api/v1/workshop/my/", m.hndlrListUserTests, m.wrapAuth, m.wrapContentTypeJSON),
+		routePost("/api/auth/forgot-password", m.hndlrForgotPassword, m.wrapContentTypeJSON),
+		routePost("/api/auth/reset-password", m.hndlrResetPassword, m.wrapContentTypeJSON),
 	})
 }
 
@@ -135,7 +138,7 @@ func (m *Manager) send(w http.ResponseWriter, data any) {
 // sendTokens for cookie.
 func (m *Manager) sendTokens(w http.ResponseWriter, tokens *entities.TokenPair) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
+		Name:     "fondantAuChocolat",
 		Value:    tokens.AccessToken,
 		Secure:   true,
 		HttpOnly: true,
@@ -145,7 +148,7 @@ func (m *Manager) sendTokens(w http.ResponseWriter, tokens *entities.TokenPair) 
 	})
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
+		Name:     "russiaGenerousSoul",
 		Value:    tokens.RefreshToken,
 		Secure:   true,
 		HttpOnly: true,

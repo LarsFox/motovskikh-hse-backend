@@ -13,19 +13,22 @@ func (m *Manager) Enjoy(ctx context.Context, email, password string) (*entities.
 	user, err := m.userDB.GetUserByEmail(ctx, email)
 	switch {
 	case errors.Is(err, nil):
+		if !auth.CheckPassword(password, user.PasswordHash) {
+			return nil, entities.ErrInvalidInput
+		}
+		tokens, err := auth.GeneratePair(user.ID, m.secretKey)
+		if err != nil {
+			return nil, fmt.Errorf("generate pair: %w", err)
+		}
+		return tokens, nil
+
 	case errors.Is(err, entities.ErrNotFound):
-		return nil, entities.ErrInvalidInput
+		if err := m.Register(ctx, email, password); err != nil {
+			return nil, err
+		}
+		return nil, entities.ErrEmailNotVerified
+
 	default:
 		return nil, fmt.Errorf("get user by email: %w", err)
 	}
-
-	if !auth.CheckPassword(password, user.PasswordHash) {
-		return nil, entities.ErrInvalidInput
-	}
-
-	tokens, err := auth.GeneratePair(user.ID, m.secretKey)
-	if err != nil {
-		return nil, fmt.Errorf("generate pair: %w", err)
-	}
-	return tokens, nil
 }
