@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	"github.com/LarsFox/motovskikh-hse-backend/achievements"
 	"github.com/LarsFox/motovskikh-hse-backend/manager"
 )
 
@@ -20,8 +21,23 @@ const (
 
 // Manager is an API manager and listener.
 type Manager struct {
-	manager *manager.Manager
-	router  *mux.Router
+	manager      *manager.Manager
+	achievements *achievements.Service
+	userIDs      UserIDProvider
+	router       *mux.Router
+}
+
+type UserIDProvider interface {
+	UserID(r *http.Request) (int64, error)
+}
+
+type Option func(*Manager)
+
+func WithAchievements(service *achievements.Service, userIDs UserIDProvider) Option {
+	return func(m *Manager) {
+		m.achievements = service
+		m.userIDs = userIDs
+	}
 }
 
 // route is a single path for a mux handler.
@@ -49,10 +65,13 @@ func newRoute(method, path string, handler http.HandlerFunc, wrappers ...wrapper
 	}
 }
 
-func NewManager(manager *manager.Manager) *Manager {
+func NewManager(manager *manager.Manager, options ...Option) *Manager {
 	m := &Manager{
 		manager: manager,
 		router:  mux.NewRouter().StrictSlash(true),
+	}
+	for _, option := range options {
+		option(m)
 	}
 
 	m.addRoutes()
@@ -85,9 +104,13 @@ func (m *Manager) Listen(addr string) error {
 }
 
 func (m *Manager) addRoutes() {
-	m.addHandlers([]route{
+	routes := []route{
 		routePost("/tests/submit/", m.hndlrSubmitTest, m.wrapContentTypeJSON), // После окончания теста получить анализ.
-	})
+	}
+	if m.achievements != nil && m.userIDs != nil {
+		routes = append(routes, routeGet("/achievements/", m.hndlrAchievements))
+	}
+	m.addHandlers(routes)
 	m.router.HandleFunc("/doc.json", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./doc.json")
 	})
