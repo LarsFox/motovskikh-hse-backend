@@ -1,51 +1,50 @@
-# Achievements integration
+# Интеграция ачивок в серверную часть
 
-Base revision: `feat/stats-tracking-system@c0d93bd55de690b156c65d1c581cf2cd4e1008cf`.
+Базовая ревизия: `feat/stats-tracking-system@c0d93bd55de690b156c65d1c581cf2cd4e1008cf`.
 
-## Data model
+## Модель данных
 
-The migration creates exactly two tables:
+Миграции создают ровно две таблицы:
 
-- `achievements`: numeric ID, bilingual copy, color, ordering and a JSON condition;
-- `user_achievements`: the idempotent `(user_id, achievement_id)` relation and award time.
+- `achievements`: числовой ID, тексты на двух языках, цвет, порядок и условие в JSON;
+- `user_achievements`: идемпотентная связь `(user_id, achievement_id)` и время выдачи.
 
-Image URLs are intentionally absent. The frontend builds
-`/img/achievements/<achievement.slug>.svg` and falls back to `star.svg`.
+URL изображений намеренно не хранятся. Клиентская часть формирует путь
+`/img/achievements/<achievement.slug>.svg`, а при отсутствии файла использует `star.svg`.
 
-The condition is a constrained JSON expression tree. A node contains exactly one
-of `all`, `any`, or `{field, operator, value}`. Supported fields are `event`,
-`test_slug`, `percentage` and `time_spent`; supported operators depend on the
-field and are limited to `eq`, `in`, `gte` and `lte`. Depth and node count are
-bounded. Conditions never execute code or become SQL fragments.
+Условие представляет собой ограниченное дерево выражений JSON. Каждый узел содержит
+ровно один элемент: `all`, `any` или `{field, operator, value}`. Поддерживаются поля
+`event`, `test_slug`, `percentage` и `time_spent`; допустимые операторы зависят от поля
+и ограничены значениями `eq`, `in`, `gte` и `lte`. Глубина дерева и количество узлов
+ограничены. Условия никогда не исполняются как код и не преобразуются во фрагменты SQL.
 
-Apply migrations in this order:
+Миграции нужно применять в следующем порядке:
 
 1. `migrations/20260806_achievements.sql`
 2. `migrations/20260806_achievements_seed.sql`
 
-## Production wiring
+## Подключение в рабочем контуре
 
-Create one `achievements.Service` using the existing MySQL client and the site's
-authoritative test catalog. Pass it to `api.NewManager` through
-`api.WithAchievements(service, userIDProvider)`.
+Нужно создать один экземпляр `achievements.Service`, передав ему существующий клиент
+MySQL и достоверный каталог тестов сайта. Затем сервис передаётся в `api.NewManager`
+через `api.WithAchievements(service, userIDProvider)`.
 
-`UserIDProvider` is deliberately an interface: the public repository does not
-contain the current secret authentication mechanism. Its implementation must
-derive the numeric user ID from the existing authenticated request context. Do
-not accept `user_id` from JSON, query parameters or a public header.
+`UserIDProvider` намеренно объявлен интерфейсом: публичный репозиторий не содержит
+актуального закрытого механизма авторизации. Реализация должна получать числовой ID
+пользователя из существующего контекста авторизованного запроса. Нельзя принимать
+`user_id` из JSON, параметров запроса или общедоступного HTTP-заголовка.
 
-When configured, successful `POST /tests/submit/` responses include
-`new_achievements`. Repeated submissions return an empty array because the
-relation has a composite primary key and MySQL uses `ON CONFLICT DO NOTHING`
-semantics through GORM. `GET /achievements/?language=ru|en` returns the complete
-catalog with `earned` and optional `earned_at`.
+После подключения успешный ответ `POST /tests/submit/` содержит `new_achievements`.
+Повторная отправка возвращает пустой массив: связь имеет составной первичный ключ,
+а GORM использует для MySQL поведение, эквивалентное `ON CONFLICT DO NOTHING`.
+`GET /achievements/?language=ru|en` возвращает полный каталог с полем `earned` и
+необязательным `earned_at`.
 
-Before production deployment, replace `StaticCatalog` with the site's current
-test registry so the backend, not the browser, verifies that `test_name` exists.
-Keep result validation before award evaluation. If statistics and achievements
-must be committed atomically in the production codebase, wrap both writes in the
-existing request transaction; that transaction API is not present in this public
-snapshot.
+Перед развёртыванием в рабочем контуре нужно заменить `StaticCatalog` актуальным
+реестром тестов сайта, чтобы существование `test_name` проверял сервер, а не браузер.
+Проверка результата должна выполняться до проверки условий ачивок. Если статистику
+и ачивки требуется записывать атомарно, обе операции нужно поместить в существующую
+транзакцию запроса. API этой транзакции отсутствует в публичном снимке репозитория.
 
-The cross-origin test header and permissive CORS policy exist only in
-`integration-kit/mock_backend`; they are not part of the Go production patch.
+Межсайтовый тестовый заголовок и разрешающая политика CORS существуют только в
+`integration-kit/mock_backend` и не входят в рабочий патч серверной части на Go.
