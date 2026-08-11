@@ -38,6 +38,8 @@ func NewClient(cfg *Config) (*Client, error) {
 	// Автомиграция для всех таблиц.
 	err = db.AutoMigrate(
 		&testStats{},
+		&achievement{},
+		&userAchievement{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("dbs migrate err: %w", err)
