@@ -15,22 +15,22 @@ var (
 )
 
 type Definition struct {
-	ID            int64           `json:"id"`
-	Slug          string          `json:"slug"`
-	TitleRU       string          `json:"title_ru"`
-	TitleEN       string          `json:"title_en"`
-	DescriptionRU string          `json:"description_ru"`
-	DescriptionEN string          `json:"description_en"`
-	Condition     json.RawMessage `json:"-"`
-	Color         string          `json:"color"`
-	SortOrder     int             `json:"sort_order"`
+	ID          int64           `json:"id"`
+	Slug        string          `json:"slug"`
+	Title       I18n            `json:"title"`
+	Description I18n            `json:"description"`
+	Condition   json.RawMessage `json:"-"`
+	Color       string          `json:"color"`
+	SortOrder   int             `json:"sort_order"`
 }
+
+type I18n map[string]string
 
 type View struct {
 	ID          int64      `json:"id"`
 	Slug        string     `json:"slug"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
+	Title       I18n       `json:"title"`
+	Description I18n       `json:"description"`
 	Color       string     `json:"color"`
 	Earned      bool       `json:"earned"`
 	EarnedAt    *time.Time `json:"earned_at,omitempty"`
@@ -120,10 +120,7 @@ func makeViews(definitions []Definition, awards map[int64]time.Time, language st
 		awardedAt, earned := awards[definition.ID]
 		view := View{
 			ID: definition.ID, Slug: definition.Slug, Color: definition.Color,
-			Title: definition.TitleRU, Description: definition.DescriptionRU, Earned: earned,
-		}
-		if strings.HasPrefix(strings.ToLower(language), "en") {
-			view.Title, view.Description = definition.TitleEN, definition.DescriptionEN
+			Title: localize(definition.Title, language), Description: localize(definition.Description, language), Earned: earned,
 		}
 		if earned {
 			value := awardedAt.UTC()
@@ -132,6 +129,24 @@ func makeViews(definitions []Definition, awards map[int64]time.Time, language st
 		views = append(views, view)
 	}
 	return views
+}
+
+func localize(value I18n, language string) I18n {
+	requestedLanguage := strings.ToLower(language)
+	selectedLanguage := "ru"
+	if strings.HasPrefix(requestedLanguage, "en") {
+		selectedLanguage = "en"
+	}
+	if translation, ok := value[selectedLanguage]; ok {
+		return I18n{selectedLanguage: translation}
+	}
+	if translation, ok := value["ru"]; ok {
+		return I18n{"ru": translation}
+	}
+	if translation, ok := value["en"]; ok {
+		return I18n{"en": translation}
+	}
+	return I18n{}
 }
 
 type StaticCatalog map[string]struct{}

@@ -583,9 +583,9 @@ definitions:
       slug:
         type: string
       title:
-        type: string
+        $ref: '#/definitions/I18n'
       description:
-        type: string
+        $ref: '#/definitions/I18n'
       color:
         type: string
         pattern: '^#[0-9a-fA-F]{6}$'

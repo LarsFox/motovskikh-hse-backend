@@ -12,16 +12,14 @@ import (
 )
 
 type achievement struct {
-	ID            int64           `gorm:"primaryKey;autoIncrement"`
-	Slug          string          `gorm:"size:96;uniqueIndex;not null"`
-	TitleRU       string          `gorm:"size:160;not null"`
-	TitleEN       string          `gorm:"size:160;not null"`
-	DescriptionRU string          `gorm:"size:500;not null"`
-	DescriptionEN string          `gorm:"size:500;not null"`
-	Condition     json.RawMessage `gorm:"type:json;not null"`
-	Color         string          `gorm:"size:7;not null"`
-	IsActive      bool            `gorm:"not null;default:true;index"`
-	SortOrder     int             `gorm:"not null;default:0"`
+	ID          int64             `gorm:"primaryKey;autoIncrement"`
+	Slug        string            `gorm:"size:96;uniqueIndex;not null"`
+	Title       achievements.I18n `gorm:"serializer:json;type:json;not null"`
+	Description achievements.I18n `gorm:"serializer:json;type:json;not null"`
+	Condition   json.RawMessage   `gorm:"type:json;not null"`
+	Color       string            `gorm:"size:7;not null"`
+	IsActive    bool              `gorm:"not null;default:true;index"`
+	SortOrder   int               `gorm:"not null;default:0"`
 }
 
 type userAchievement struct {
@@ -38,8 +36,7 @@ func (c *Client) ListActiveDefinitions(ctx context.Context) ([]achievements.Defi
 	result := make([]achievements.Definition, 0, len(rows))
 	for _, row := range rows {
 		result = append(result, achievements.Definition{
-			ID: row.ID, Slug: row.Slug, TitleRU: row.TitleRU, TitleEN: row.TitleEN,
-			DescriptionRU: row.DescriptionRU, DescriptionEN: row.DescriptionEN,
+			ID: row.ID, Slug: row.Slug, Title: row.Title, Description: row.Description,
 			Condition: row.Condition, Color: row.Color, SortOrder: row.SortOrder,
 		})
 	}

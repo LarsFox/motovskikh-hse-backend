@@ -1,10 +1,8 @@
 CREATE TABLE achievements (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     slug VARCHAR(96) NOT NULL,
-    title_ru VARCHAR(160) NOT NULL,
-    title_en VARCHAR(160) NOT NULL,
-    description_ru VARCHAR(500) NOT NULL,
-    description_en VARCHAR(500) NOT NULL,
+    title JSON NOT NULL,
+    description JSON NOT NULL,
     `condition` JSON NOT NULL,
     color CHAR(7) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,

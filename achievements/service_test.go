@@ -38,7 +38,11 @@ func (s *memoryStore) Grant(_ context.Context, userID, achievementID int64) (boo
 }
 
 func definition(id int64, slug, condition string) Definition {
-	return Definition{ID: id, Slug: slug, TitleRU: "Рус", TitleEN: "English", DescriptionRU: "Описание", DescriptionEN: "Description", Condition: json.RawMessage(condition), Color: "#ffbf69", SortOrder: int(id)}
+	return Definition{
+		ID: id, Slug: slug,
+		Title: I18n{"ru": "Рус", "en": "English"}, Description: I18n{"ru": "Описание", "en": "Description"},
+		Condition: json.RawMessage(condition), Color: "#ffbf69", SortOrder: int(id),
+	}
 }
 
 func TestAwardForTestResultIsValidatedAndIdempotent(t *testing.T) {
@@ -51,8 +55,8 @@ func TestAwardForTestResultIsValidatedAndIdempotent(t *testing.T) {
 	}
 	service := NewService(store, NewStaticCatalog([]string{"russia", "europe"}))
 
-	awarded, err := service.AwardForTestResult(context.Background(), 42, TestResult{TestSlug: "/russia/", Percentage: 100, TimeSpent: 12}, "en")
-	if err != nil || len(awarded) != 2 || awarded[0].Title != "English" {
+	awarded, err := service.AwardForTestResult(context.Background(), 42, TestResult{TestSlug: "/russia/", Percentage: 100, TimeSpent: 12}, "en-US")
+	if err != nil || len(awarded) != 2 || len(awarded[0].Title) != 1 || awarded[0].Title["en"] != "English" {
 		t.Fatalf("unexpected first award: %#v, %v", awarded, err)
 	}
 	repeated, err := service.AwardForTestResult(context.Background(), 42, TestResult{TestSlug: "russia", Percentage: 100}, "en")
@@ -60,7 +64,7 @@ func TestAwardForTestResultIsValidatedAndIdempotent(t *testing.T) {
 		t.Fatalf("award must be idempotent: %#v, %v", repeated, err)
 	}
 	all, err := service.List(context.Background(), 42, "ru")
-	if err != nil || len(all) != 2 || !all[0].Earned || all[0].Title != "Рус" {
+	if err != nil || len(all) != 2 || !all[0].Earned || len(all[0].Title) != 1 || all[0].Title["ru"] != "Рус" {
 		t.Fatalf("unexpected catalog: %#v, %v", all, err)
 	}
 }
